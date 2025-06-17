@@ -22,14 +22,27 @@ define('PILATES_VERSION', '1.0.0');
 register_activation_hook(__FILE__, 'pilates_activate');
 function pilates_activate()
 {
-    // Activation code here
+    // Load main class for table creation
+    require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
+    $pilates_main = new Pilates_Main();
+    $pilates_main->create_tables();
+
+    // Register CPT immediately during activation
+    require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-exercise.php';
+    $exercise = new Pilates_Exercise();
+    $exercise->register_post_type();
+    $exercise->register_taxonomies();
+
+    // Flush rewrite rules for custom post types
+    flush_rewrite_rules();
 }
 
 // Plugin deactivation  
 register_deactivation_hook(__FILE__, 'pilates_deactivate');
 function pilates_deactivate()
 {
-    // Deactivation code here
+    // Flush rewrite rules
+    flush_rewrite_rules();
 }
 
 // Initialize plugin
@@ -38,5 +51,5 @@ function pilates_init()
 {
     // Load plugin classes
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
-    //new Pilates_Main();
+    new Pilates_Main();
 }
