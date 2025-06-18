@@ -17,6 +17,7 @@ class Pilates_Main
         add_action('init', array($this, 'init'));
         add_action('init', array($this, 'add_rewrite_rules'));
         add_action('init', array($this, 'handle_subtitle_request'));
+        add_action('init', array($this, 'create_taxonomy_relationships')); // Dodajte ovo
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
         add_filter('upload_mimes', array($this, 'allow_svg_upload'));
@@ -207,7 +208,26 @@ class Pilates_Main
             );
         }
     }
+    public function create_taxonomy_relationships()
+    {
+        // Kreirajte hijerarhijsku vezu između dana i pozicija
+        add_filter('term_relationship_query', function ($args, $taxonomy, $term_taxonomy_id) {
+            if ($taxonomy === 'exercise_position') {
+                // Dozvoljava povezivanje pozicija sa danima
+                $args['parent'] = 0; // Vraća samo top-level pozicije po defaultu
+            }
+            return $args;
+        }, 10, 3);
 
+        // Omogućuje prikaz hijerarhije u admin panelu
+        add_filter('taxonomy_parent_dropdown_args', function ($args, $taxonomy) {
+            if ($taxonomy === 'exercise_position') {
+                $args['parent'] = 0;
+                $args['taxonomy'] = 'exercise_day'; // Pozicije mogu imati dana kao roditelje
+            }
+            return $args;
+        }, 10, 2);
+    }
     public function register_post_types_and_taxonomies()
     {
         // Register Exercise post type
@@ -258,12 +278,12 @@ class Pilates_Main
             'show_in_menu' => true
         ));
 
-        register_taxonomy('exercise_equipment', 'pilates_exercise', array(
+        register_taxonomy('exercise_position', 'pilates_exercise', array(
             'hierarchical' => true,
             'labels' => array(
-                'name' => 'Equipment/Position',
-                'singular_name' => 'Equipment',
-                'add_new_item' => 'Add New Equipment'
+                'name' => 'Positions',
+                'singular_name' => 'Position',
+                'add_new_item' => 'Add New Position'
             ),
             'show_ui' => true,
             'show_admin_column' => true,

@@ -8,8 +8,22 @@ class Pilates_Exercise
         add_action('manage_pilates_exercise_posts_custom_column', array($this, 'custom_column_content'), 10, 2);
         add_filter('manage_edit-pilates_exercise_sortable_columns', array($this, 'sortable_columns'));
         add_action('init', array($this, 'register_acf_fields'), 20);
+        add_action('save_post_pilates_exercise', array($this, 'save_related_exercises'), 10, 3);
     }
+    // Dodajte metodu za povezivanje vežbi
+    public function save_related_exercises($post_id, $post, $update)
+    {
+        // Ne radimo ništa ako je autosave ili ako je novo kreiranje posta
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+        if (!$update) return;
 
+        // Proverite da li su postavljena povezana polja
+        if (isset($_POST['related_exercises'])) {
+            // Sačuvajte podatke kao meta polje
+            $related_exercises = array_map('intval', $_POST['related_exercises']);
+            update_post_meta($post_id, '_related_exercises', $related_exercises);
+        }
+    }
     public function register_acf_fields()
     {
         if (function_exists('acf_add_local_field_group')):
@@ -19,6 +33,16 @@ class Pilates_Exercise
                 'title' => 'Exercise Video & Details',
                 'fields' => array(
                     array(
+                        'key' => 'field_related_exercises',
+                        'label' => 'Related Exercises',
+                        'name' => 'related_exercises',
+                        'type' => 'relationship',
+                        'instructions' => 'Select exercises that are variations of this exercise',
+                        'required' => 0,
+                        'post_type' => array('pilates_exercise'),
+                        'return_format' => 'id',
+                    ),
+                    array(
                         'key' => 'field_exercise_order',
                         'label' => 'Exercise Order',
                         'name' => 'exercise_order',
@@ -27,6 +51,7 @@ class Pilates_Exercise
                         'default_value' => 1,
                         'min' => 1,
                     ),
+
                     array(
                         'key' => 'field_exercise_duration',
                         'label' => 'Duration (minutes)',
@@ -99,6 +124,7 @@ class Pilates_Exercise
                         'tabs' => 'all',
                         'delay' => 0,
                     ),
+
                 ),
                 'location' => array(
                     array(
@@ -109,6 +135,7 @@ class Pilates_Exercise
                         ),
                     ),
                 ),
+
                 'menu_order' => 0,
                 'position' => 'normal',
                 'style' => 'default',
@@ -126,7 +153,7 @@ class Pilates_Exercise
         $new_columns['cb'] = $columns['cb'];
         $new_columns['title'] = $columns['title'];
         $new_columns['exercise_day'] = 'Day';
-        $new_columns['exercise_equipment'] = 'Equipment';
+        $new_columns['exercise_position'] = 'Position';
         $new_columns['order'] = 'Order';
         $new_columns['difficulty'] = 'Difficulty';
         $new_columns['duration'] = 'Duration';
@@ -134,7 +161,6 @@ class Pilates_Exercise
 
         return $new_columns;
     }
-
     public function custom_column_content($column, $post_id)
     {
         switch ($column) {
@@ -149,6 +175,18 @@ class Pilates_Exercise
             case 'duration':
                 $duration = get_field('exercise_duration', $post_id);
                 echo $duration ? $duration . ' min' : '-';
+                break;
+            case 'exercise_position':
+                $terms = get_the_terms($post_id, 'exercise_position');
+                if (!empty($terms)) {
+                    $position_links = array();
+                    foreach ($terms as $term) {
+                        $position_links[] = $term->name;
+                    }
+                    echo implode(', ', $position_links);
+                } else {
+                    echo '-';
+                }
                 break;
         }
     }

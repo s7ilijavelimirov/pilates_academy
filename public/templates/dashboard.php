@@ -811,7 +811,8 @@ if ($_POST && isset($_POST['update_profile'])) {
                                     <?php endif; ?>
 
                                     <?php if ($equipment): ?>
-                                        <span class="meta-item">🏋️ <?php echo $equipment[0]->name; ?></span>
+                                        <?php print_r($exercise_id);?>
+                                        <span class="meta-item">🏋️ <?php //echo $equipment[0]->name; ?></span>
                                     <?php endif; ?>
                                 </div>
 
@@ -934,9 +935,9 @@ if ($_POST && isset($_POST['update_profile'])) {
                                                     <span class="meta-tag">🕐 <?php echo $duration; ?>min</span>
                                                 <?php endif; ?>
 
-                                                <?php if ($equipment): ?>
-                                                    <span class="meta-tag">🏋️ <?php echo $equipment[0]->name; ?></span>
-                                                <?php endif; ?>
+                                                <!-- <?php if ($equipment): ?>
+                                                    <span class="meta-tag">🏋️ <?php //echo $equipment[0]->name; ?></span>
+                                                <?php endif; ?> -->
                                             </div>
 
                                             <?php if ($short_desc): ?>
