@@ -489,7 +489,84 @@ if ($_POST && isset($_POST['update_profile'])) {
 
     <script>
         // ===== DODAJ OVO U dashboard.php u <script> tag ili kreiraj dashboard.js =====
+        // Dodaj ovo u dashboard.php u postojeći <script> tag
 
+        document.addEventListener('DOMContentLoaded', function() {
+            // Avatar upload functionality
+            const avatarInput = document.querySelector('input[name="avatar"]');
+            const currentAvatar = document.querySelector('.current-avatar');
+            const fileInputBtn = document.querySelector('.file-input-btn');
+
+            if (avatarInput && currentAvatar) {
+                // Preview new image before upload
+                avatarInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Validate file size (1MB)
+                        if (file.size > 1048576) {
+                            alert('File size must be less than 1MB.');
+                            this.value = '';
+                            return;
+                        }
+
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                        if (!allowedTypes.includes(file.type)) {
+                            alert('Only image files (JPEG, PNG, GIF, WebP) are allowed.');
+                            this.value = '';
+                            return;
+                        }
+
+                        // Show preview
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            currentAvatar.src = e.target.result;
+                            fileInputBtn.textContent = '✓ Photo Selected';
+                            fileInputBtn.style.background = '#00a32a';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                // AJAX upload (optional - trenutno se koristi form submit)
+                function uploadAvatarAjax(file) {
+                    const formData = new FormData();
+                    formData.append('avatar', file);
+                    formData.append('action', 'upload_avatar');
+                    formData.append('nonce', pilates_ajax.nonce);
+
+                    fetch(pilates_ajax.ajax_url, {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                currentAvatar.src = data.data.avatar_url;
+                                showMessage(data.data.message, 'success');
+                            } else {
+                                showMessage(data.data, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showMessage('Upload failed. Please try again.', 'error');
+                        });
+                }
+
+                function showMessage(message, type) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `${type}-message`;
+                    messageDiv.textContent = message;
+
+                    const form = document.querySelector('.profile-form');
+                    form.insertBefore(messageDiv, form.firstChild);
+
+                    setTimeout(() => {
+                        messageDiv.remove();
+                    }, 3000);
+                }
+            }
+        });
         document.addEventListener('DOMContentLoaded', function() {
             // Dark Mode Toggle Functionality
             const themeToggle = document.getElementById('theme-toggle');

@@ -51,6 +51,11 @@ class Pilates_Main
     {
         check_ajax_referer('pilates_nonce', 'nonce');
 
+        if (!is_user_logged_in()) {
+            wp_send_json_error('You must be logged in to upload avatar.');
+            return;
+        }
+
         if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== 0) {
             wp_send_json_error('No file uploaded or upload error occurred.');
             return;
@@ -58,10 +63,24 @@ class Pilates_Main
 
         require_once(ABSPATH . 'wp-admin/includes/file.php');
 
-        // Add flag for validation
-        $_POST['pilates_avatar_upload'] = true;
+        // Validate file
+        $file = $_FILES['avatar'];
 
-        $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
+        // Check file type
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
+        if (!in_array($file['type'], $allowed_types)) {
+            wp_send_json_error('Only image files (JPEG, PNG, GIF, WebP) are allowed.');
+            return;
+        }
+
+        // Check file size (1MB)
+        if ($file['size'] > 1048576) {
+            wp_send_json_error('File size must be less than 1MB.');
+            return;
+        }
+
+        // Upload file
+        $uploaded = wp_handle_upload($file, array('test_form' => false));
 
         if (isset($uploaded['error'])) {
             wp_send_json_error($uploaded['error']);
@@ -85,11 +104,18 @@ class Pilates_Main
         require_once(ABSPATH . 'wp-admin/includes/image.php');
         wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
 
-        // Save to user meta
         $current_user = wp_get_current_user();
+
+        // Delete old avatar if exists
+        $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+        if ($old_avatar_id) {
+            wp_delete_attachment($old_avatar_id, true);
+        }
+
+        // Save new avatar to user meta
         update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
 
-        // Update admin dashboard student table
+        // Update students table
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_students';
         $wpdb->update(
@@ -309,46 +335,58 @@ class Pilates_Main
 
         $charset_collate = $wpdb->get_charset_collate();
 
-        // Students table with avatar_id column
+        // Students table WITH avatar_id column
         $table_students = $wpdb->prefix . 'pilates_students';
         $sql_students = "CREATE TABLE $table_students (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            user_id bigint(20) NULL,
-            first_name varchar(100) NOT NULL,
-            last_name varchar(100) NOT NULL,
-            email varchar(100),
-            phone varchar(20),
-            primary_language varchar(5) DEFAULT 'en',
-            date_joined date NOT NULL,
-            validity_date date NULL,
-            status varchar(20) DEFAULT 'active',
-            notes text,
-            avatar_id bigint(20) NULL,
-            last_login datetime NULL,
-            login_count int DEFAULT 0,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY user_id (user_id),
-            KEY email (email)
-        ) $charset_collate;";
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NULL,
+        first_name varchar(100) NOT NULL,
+        last_name varchar(100) NOT NULL,
+        email varchar(100),
+        phone varchar(20),
+        primary_language varchar(5) DEFAULT 'en',
+        date_joined date NOT NULL,
+        validity_date date NULL,
+        status varchar(20) DEFAULT 'active',
+        notes text,
+        avatar_id bigint(20) NULL,  -- Ovo je ključno za avatar
+        last_login datetime NULL,
+        login_count int DEFAULT 0,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY email (email),
+        KEY avatar_id (avatar_id)
+    ) $charset_collate;";
 
         // Student sessions table
         $table_sessions = $wpdb->prefix . 'pilates_student_sessions';
         $sql_sessions = "CREATE TABLE $table_sessions (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            student_id mediumint(9) NOT NULL,
-            session_date date NOT NULL,
-            exercises text,
-            notes text,
-            duration int(11),
-            instructor varchar(100),
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY student_id (student_id)
-        ) $charset_collate;";
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        student_id mediumint(9) NOT NULL,
+        session_date date NOT NULL,
+        exercises text,
+        notes text,
+        duration int(11),
+        instructor varchar(100),
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY student_id (student_id)
+    ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_students);
         dbDelta($sql_sessions);
+
+        // Dodaj avatar_id kolonu ako ne postoji (za postojeće tabele)
+        $column_exists = $wpdb->get_results($wpdb->prepare(
+            "SHOW COLUMNS FROM {$table_students} LIKE %s",
+            'avatar_id'
+        ));
+
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN avatar_id bigint(20) NULL AFTER notes");
+            $wpdb->query("ALTER TABLE {$table_students} ADD KEY avatar_id (avatar_id)");
+        }
     }
 }
