@@ -230,7 +230,8 @@ class Pilates_Main
             'labels' => $labels,
             'public' => false,
             'show_ui' => true,
-            'show_in_menu' => false, // We'll add it manually to submenu
+            'show_in_menu' => true,
+            'menu_position' => 31,
             'capability_type' => 'post',
             'hierarchical' => false,
             'supports' => array('title', 'editor', 'thumbnail'),
@@ -254,7 +255,7 @@ class Pilates_Main
             'show_admin_column' => true,
             'query_var' => true,
             'public' => false,
-            'show_in_menu' => false
+            'show_in_menu' => true
         ));
 
         register_taxonomy('exercise_equipment', 'pilates_exercise', array(
@@ -268,7 +269,7 @@ class Pilates_Main
             'show_admin_column' => true,
             'query_var' => true,
             'public' => false,
-            'show_in_menu' => false
+            'show_in_menu' => true
         ));
     }
 

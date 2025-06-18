@@ -41,41 +41,7 @@ class Pilates_Admin
             array($this, 'students_page')
         );
 
-        // Exercises submenu - connect to post type
-        add_submenu_page(
-            'pilates-academy',
-            'Exercises',
-            'Exercises',
-            'manage_options',
-            'edit.php?post_type=pilates_exercise'
-        );
 
-        // Add New Exercise submenu
-        add_submenu_page(
-            'pilates-academy',
-            'Add Exercise',
-            'Add Exercise',
-            'manage_options',
-            'post-new.php?post_type=pilates_exercise'
-        );
-
-        // Days taxonomy
-        add_submenu_page(
-            'pilates-academy',
-            'Days',
-            'Days',
-            'manage_options',
-            'edit-tags.php?taxonomy=exercise_day&post_type=pilates_exercise'
-        );
-
-        // Equipment taxonomy
-        add_submenu_page(
-            'pilates-academy',
-            'Equipment',
-            'Equipment',
-            'manage_options',
-            'edit-tags.php?taxonomy=exercise_equipment&post_type=pilates_exercise'
-        );
 
         // Sessions submenu
         add_submenu_page(
