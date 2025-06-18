@@ -6,8 +6,11 @@ class Pilates_Admin
     {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-        add_action('wp_ajax_save_student', array($this, 'save_student'));
-        add_action('wp_ajax_update_student', array($this, 'update_student'));
+
+        add_action('admin_post_pilates_add_student', array($this, 'handle_add_student'));
+        add_action('admin_post_pilates_update_student', array($this, 'handle_update_student'));
+        add_action('admin_post_pilates_delete_student', array($this, 'handle_delete_student'));
+        add_action('admin_post_pilates_send_credentials', array($this, 'handle_send_credentials'));
     }
 
     public function add_admin_menu()
@@ -167,6 +170,21 @@ class Pilates_Admin
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_students';
         $students = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC");
+
+        // Handle messages
+        if (isset($_GET['message'])) {
+            $message = $_GET['message'];
+            if ($message === 'added') {
+                echo '<div class="notice notice-success"><p>Student successfully added!</p></div>';
+            } elseif ($message === 'deleted') {
+                echo '<div class="notice notice-success"><p>Student successfully deleted!</p></div>';
+            } elseif ($message === 'credentials_sent') {
+                echo '<div class="notice notice-success"><p>Login credentials sent successfully!</p></div>';
+            } elseif ($message === 'error') {
+                $error = isset($_GET['error']) ? urldecode($_GET['error']) : 'Unknown error';
+                echo '<div class="notice notice-error"><p>Error: ' . esc_html($error) . '</p></div>';
+            }
+        }
     ?>
         <div class="wrap">
             <h1>Students <a href="<?php echo admin_url('admin.php?page=pilates-students&action=add'); ?>" class="page-title-action">Add New</a></h1>
@@ -201,6 +219,22 @@ class Pilates_Admin
                                 </td>
                                 <td>
                                     <a href="<?php echo admin_url('admin.php?page=pilates-students&action=edit&id=' . $student->id); ?>" class="button button-small">Edit</a>
+
+                                    <?php if ($student->user_id): ?>
+                                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
+                                            <?php wp_nonce_field('pilates_send_credentials', 'pilates_nonce'); ?>
+                                            <input type="hidden" name="action" value="pilates_send_credentials">
+                                            <input type="hidden" name="student_id" value="<?php echo $student->id; ?>">
+                                            <input type="submit" class="button button-small" value="Send Login" onclick="return confirm('Send login credentials to this student?')">
+                                        </form>
+                                    <?php endif; ?>
+
+                                    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
+                                        <?php wp_nonce_field('pilates_delete_student', 'pilates_nonce'); ?>
+                                        <input type="hidden" name="action" value="pilates_delete_student">
+                                        <input type="hidden" name="student_id" value="<?php echo $student->id; ?>">
+                                        <input type="submit" class="button button-small button-link-delete" value="Delete" onclick="return confirm('Are you sure you want to delete this student? This action cannot be undone.')">
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -210,14 +244,210 @@ class Pilates_Admin
         </div>
     <?php
     }
+    public function handle_add_student()
+    {
+        check_admin_referer('pilates_add_student', 'pilates_nonce');
 
+        if (!current_user_can('manage_options')) {
+            wp_die('Insufficient permissions');
+        }
+
+        $errors = $this->validate_student_data($_POST);
+
+        if (!empty($errors)) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode(implode(', ', $errors))));
+            exit;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'pilates_students';
+
+        $email = sanitize_email($_POST['email']);
+
+        // Check if user already exists
+        if (email_exists($email)) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('User with this email already exists')));
+            exit;
+        }
+
+        // Generate random password
+        $password = wp_generate_password(12, false);
+        $first_name = sanitize_text_field($_POST['first_name']);
+        $last_name = sanitize_text_field($_POST['last_name']);
+
+        // Create WordPress user
+        $user_data = array(
+            'user_login' => $email,
+            'user_email' => $email,
+            'user_pass' => $password,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'display_name' => $first_name . ' ' . $last_name,
+            'role' => 'pilates_student'
+        );
+
+        $user_id = wp_insert_user($user_data);
+
+        if (is_wp_error($user_id)) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode($user_id->get_error_message())));
+            exit;
+        }
+
+        // Save student data
+        $data = array(
+            'user_id' => $user_id,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'email' => $email,
+            'phone' => sanitize_text_field($_POST['phone']),
+            'primary_language' => sanitize_text_field($_POST['primary_language']),
+            'date_joined' => sanitize_text_field($_POST['date_joined']),
+            'validity_date' => sanitize_text_field($_POST['validity_date']),
+            'notes' => sanitize_textarea_field($_POST['notes'])
+        );
+
+        $result = $wpdb->insert($table_name, $data);
+
+        if ($result === false) {
+            wp_delete_user($user_id);
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('Database error occurred')));
+            exit;
+        }
+
+        // Store credentials in transient for manual sending
+        set_transient('pilates_new_student_' . $user_id, array(
+            'email' => $email,
+            'password' => $password,
+            'name' => $first_name
+        ), HOUR_IN_SECONDS);
+
+        wp_redirect(admin_url('admin.php?page=pilates-students&message=added'));
+        exit;
+    }
+
+    public function handle_delete_student()
+    {
+        check_admin_referer('pilates_delete_student', 'pilates_nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Insufficient permissions');
+        }
+
+        $student_id = absint($_POST['student_id']);
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'pilates_students';
+
+        // Get student info
+        $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $student_id));
+
+        if (!$student) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Student not found')));
+            exit;
+        }
+
+        // Delete WordPress user if exists
+        if ($student->user_id) {
+            wp_delete_user($student->user_id);
+        }
+
+        // Delete from students table
+        $wpdb->delete($table_name, array('id' => $student_id));
+
+        // Delete sessions
+        $sessions_table = $wpdb->prefix . 'pilates_student_sessions';
+        $wpdb->delete($sessions_table, array('student_id' => $student_id));
+
+        wp_redirect(admin_url('admin.php?page=pilates-students&message=deleted'));
+        exit;
+    }
+
+    public function handle_send_credentials()
+    {
+        check_admin_referer('pilates_send_credentials', 'pilates_nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Insufficient permissions');
+        }
+
+        $student_id = absint($_POST['student_id']);
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'pilates_students';
+        $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $student_id));
+
+        if (!$student || !$student->user_id) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Student not found')));
+            exit;
+        }
+
+        // Check for stored credentials
+        $credentials = get_transient('pilates_new_student_' . $student->user_id);
+
+        if (!$credentials) {
+            // Generate new password
+            $new_password = wp_generate_password(12, false);
+            wp_set_password($new_password, $student->user_id);
+
+            $credentials = array(
+                'email' => $student->email,
+                'password' => $new_password,
+                'name' => $student->first_name
+            );
+        }
+
+        $sent = $this->send_welcome_email($credentials['email'], $credentials['password'], $credentials['name']);
+
+        if ($sent) {
+            delete_transient('pilates_new_student_' . $student->user_id);
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=credentials_sent'));
+        } else {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Failed to send email')));
+        }
+        exit;
+    }
+
+    private function validate_student_data($data)
+    {
+        $errors = array();
+
+        if (empty($data['first_name'])) {
+            $errors[] = 'First name is required';
+        }
+
+        if (empty($data['last_name'])) {
+            $errors[] = 'Last name is required';
+        }
+
+        if (empty($data['email']) || !is_email($data['email'])) {
+            $errors[] = 'Valid email is required';
+        }
+
+        if (empty($data['date_joined'])) {
+            $errors[] = 'Date joined is required';
+        }
+
+        return $errors;
+    }
     private function add_student_form()
     {
+        // Handle form submission
+        if (isset($_GET['message'])) {
+            $message_type = $_GET['message'];
+            if ($message_type === 'added') {
+                echo '<div class="notice notice-success"><p>Student successfully added!</p></div>';
+            } elseif ($message_type === 'error') {
+                $error = isset($_GET['error']) ? urldecode($_GET['error']) : 'Unknown error occurred.';
+                echo '<div class="notice notice-error"><p>Error: ' . esc_html($error) . '</p></div>';
+            }
+        }
     ?>
         <div class="wrap">
             <h1>Add New Student</h1>
-            <form method="post" id="add-student-form">
-                <?php wp_nonce_field('pilates_nonce', 'pilates_nonce'); ?>
+            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                <?php wp_nonce_field('pilates_add_student', 'pilates_nonce'); ?>
+                <input type="hidden" name="action" value="pilates_add_student">
+
                 <table class="form-table">
                     <tr>
                         <th><label for="first_name">First Name *</label></th>
@@ -255,7 +485,7 @@ class Pilates_Admin
                     </tr>
                     <tr>
                         <th><label for="notes">Notes</label></th>
-                        <td><textarea id="notes" name="notes" rows="4" class="large-text" placeholder="Any additional notes about the student..."></textarea></td>
+                        <td><textarea id="notes" name="notes" rows="4" class="large-text"></textarea></td>
                     </tr>
                 </table>
                 <p class="submit">
@@ -333,97 +563,6 @@ class Pilates_Admin
 <?php
     }
 
-    public function save_student()
-    {
-        check_ajax_referer('pilates_nonce', 'nonce');
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'pilates_students';
-
-        $email = sanitize_email($_POST['email']);
-        $first_name = sanitize_text_field($_POST['first_name']);
-        $last_name = sanitize_text_field($_POST['last_name']);
-
-        // Check if user already exists
-        if (email_exists($email)) {
-            wp_send_json_error('User with this email already exists');
-            return;
-        }
-
-        // Generate random password
-        $password = wp_generate_password(12, false);
-
-        // Create WordPress user
-        $user_data = array(
-            'user_login' => $email,
-            'user_email' => $email,
-            'user_pass' => $password,
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'display_name' => $first_name . ' ' . $last_name,
-            'role' => 'pilates_student'
-        );
-
-        $user_id = wp_insert_user($user_data);
-
-        if (is_wp_error($user_id)) {
-            wp_send_json_error('Error creating user: ' . $user_id->get_error_message());
-            return;
-        }
-
-        // Save student data
-        $data = array(
-            'user_id' => $user_id,
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'email' => $email,
-            'phone' => sanitize_text_field($_POST['phone']),
-            'primary_language' => sanitize_text_field($_POST['primary_language']),
-            'date_joined' => sanitize_text_field($_POST['date_joined']),
-            'validity_date' => sanitize_text_field($_POST['validity_date']),
-            'notes' => sanitize_textarea_field($_POST['notes'])
-        );
-
-        $result = $wpdb->insert($table_name, $data);
-
-        if ($result !== false) {
-            // Send welcome email
-            $this->send_welcome_email($email, $password, $first_name);
-            wp_send_json_success('Student saved successfully and welcome email sent');
-        } else {
-            // Delete user if student record failed
-            wp_delete_user($user_id);
-            wp_send_json_error('Error saving student: ' . $wpdb->last_error);
-        }
-    }
-
-    public function update_student()
-    {
-        check_ajax_referer('pilates_nonce', 'nonce');
-
-        $student_id = absint($_POST['student_id']);
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'pilates_students';
-
-        $data = array(
-            'first_name' => sanitize_text_field($_POST['first_name']),
-            'last_name' => sanitize_text_field($_POST['last_name']),
-            'email' => sanitize_email($_POST['email']),
-            'phone' => sanitize_text_field($_POST['phone']),
-            'date_joined' => sanitize_text_field($_POST['date_joined']),
-            'status' => sanitize_text_field($_POST['status']),
-            'notes' => sanitize_textarea_field($_POST['notes'])
-        );
-
-        $result = $wpdb->update($table_name, $data, array('id' => $student_id));
-
-        if ($result !== false) {
-            wp_send_json_success('Student updated successfully');
-        } else {
-            wp_send_json_error('Error updating student: ' . $wpdb->last_error);
-        }
-    }
 
     private function send_welcome_email($email, $password, $first_name)
     {
