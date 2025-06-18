@@ -23,6 +23,7 @@ class Pilates_Main
         add_action('wp_ajax_upload_avatar', array($this, 'handle_avatar_upload'));
         add_filter('wp_handle_upload_prefilter', array($this, 'validate_avatar_upload'));
     }
+
     public function validate_avatar_upload($file)
     {
         // Check if this is avatar upload
@@ -102,11 +103,13 @@ class Pilates_Main
             'message' => 'Profile picture updated successfully!'
         ));
     }
+
     public function allow_svg_upload($mimes)
     {
         $mimes['svg'] = 'image/svg+xml';
         return $mimes;
     }
+
     public function handle_subtitle_request()
     {
         if (isset($_GET['pilates_subtitle']) && isset($_GET['file_id'])) {
@@ -139,6 +142,7 @@ class Pilates_Main
         echo $content;
         exit;
     }
+
     public function init()
     {
         // Register post types and taxonomies
@@ -156,6 +160,7 @@ class Pilates_Main
             new Pilates_Admin();
         }
     }
+
     public function add_rewrite_rules()
     {
         add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
@@ -202,6 +207,7 @@ class Pilates_Main
             );
         }
     }
+
     public function register_post_types_and_taxonomies()
     {
         // Register Exercise post type
@@ -272,7 +278,7 @@ class Pilates_Main
 
         $charset_collate = $wpdb->get_charset_collate();
 
-        // Students table
+        // Students table with avatar_id column
         $table_students = $wpdb->prefix . 'pilates_students';
         $sql_students = "CREATE TABLE $table_students (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -286,11 +292,13 @@ class Pilates_Main
             validity_date date NULL,
             status varchar(20) DEFAULT 'active',
             notes text,
+            avatar_id bigint(20) NULL,
             last_login datetime NULL,
             login_count int DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            KEY user_id (user_id)
+            KEY user_id (user_id),
+            KEY email (email)
         ) $charset_collate;";
 
         // Student sessions table
