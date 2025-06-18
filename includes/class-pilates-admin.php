@@ -17,8 +17,8 @@ class Pilates_Admin
         add_action('wp_ajax_pilates_update_student', array($this, 'ajax_update_student'));
         add_action('wp_ajax_pilates_toggle_status', array($this, 'ajax_toggle_status'));
 
-        add_action('admin_post_pilates_export_students', 'pilates_export_students_callback');
-        add_action('admin_post_pilates_import_students', 'pilates_import_students_callback');
+        add_action('admin_post_pilates_export_students', array($this, 'export_students'));
+        add_action('admin_post_pilates_import_students', array($this, 'import_students'));
     }
 
     public function add_admin_menu()
@@ -138,137 +138,7 @@ class Pilates_Admin
                 break;
         }
     }
-    function pilates_import_students_callback()
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized user');
-        }
 
-        check_admin_referer('pilates_import_students_nonce', 'pilates_import_nonce');
-
-        if (!isset($_FILES['students_csv']) || $_FILES['students_csv']['error'] !== UPLOAD_ERR_OK) {
-            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('CSV file upload failed')));
-            exit;
-        }
-
-        $file = $_FILES['students_csv']['tmp_name'];
-
-        if (($handle = fopen($file, 'r')) !== false) {
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'pilates_students';
-
-            $row = 0;
-            $imported = 0;
-            $updated = 0;
-
-            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
-                if ($row === 0) {
-                    // Preskoči header red
-                    $row++;
-                    continue;
-                }
-
-                // Podaci iz CSV: red po red, obrati pažnju na redosled kolona iz Export funkcije
-                list($id, $first_name, $last_name, $email, $phone, $primary_language, $date_joined, $validity_date, $status, $user_id) = $data;
-
-                // Provera da li student sa tim ID već postoji
-                $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id));
-
-                if ($existing) {
-                    // Update postojeći
-                    $wpdb->update(
-                        $table_name,
-                        array(
-                            'first_name' => $first_name,
-                            'last_name' => $last_name,
-                            'email' => $email,
-                            'phone' => $phone,
-                            'primary_language' => $primary_language,
-                            'date_joined' => $date_joined,
-                            'validity_date' => $validity_date,
-                            'status' => $status,
-                            'user_id' => $user_id,
-                        ),
-                        array('id' => $id),
-                        array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'),
-                        array('%d')
-                    );
-                    $updated++;
-                } else {
-                    // Insert novi
-                    $wpdb->insert(
-                        $table_name,
-                        array(
-                            'first_name' => $first_name,
-                            'last_name' => $last_name,
-                            'email' => $email,
-                            'phone' => $phone,
-                            'primary_language' => $primary_language,
-                            'date_joined' => $date_joined,
-                            'validity_date' => $validity_date,
-                            'status' => $status,
-                            'user_id' => $user_id,
-                        ),
-                        array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
-                    );
-                    $imported++;
-                }
-
-                $row++;
-            }
-
-            fclose($handle);
-
-            wp_redirect(admin_url('admin.php?page=pilates-students&message=added&imported=' . $imported . '&updated=' . $updated));
-            exit;
-        } else {
-            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Unable to open CSV file')));
-            exit;
-        }
-    }
-    function pilates_export_students_callback()
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized user');
-        }
-
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'pilates_students';
-        $students = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC");
-
-        if (!$students) {
-            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('No students found to export')));
-            exit;
-        }
-
-        // Set headers to force download CSV
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=pilates_students_export_' . date('Y-m-d') . '.csv');
-
-        $output = fopen('php://output', 'w');
-
-        // Ispiši header kolone CSV fajla (bilo koje koje želiš da exportuješ)
-        fputcsv($output, array('ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Primary Language', 'Date Joined', 'Validity Date', 'Status', 'User ID'));
-
-        // Ispiši podatke o studentima
-        foreach ($students as $student) {
-            fputcsv($output, array(
-                $student->id,
-                $student->first_name,
-                $student->last_name,
-                $student->email,
-                $student->phone,
-                $student->primary_language,
-                $student->date_joined,
-                $student->validity_date,
-                $student->status,
-                $student->user_id,
-            ));
-        }
-
-        fclose($output);
-        exit;
-    }
     private function list_students()
     {
         global $wpdb;
@@ -298,6 +168,17 @@ class Pilates_Admin
         }
 
     ?>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const importBtn = document.getElementById('import-students-button');
+                if (importBtn) {
+                    importBtn.addEventListener('click', function() {
+                        document.getElementById('import-students-form').style.display = 'block';
+                        this.style.display = 'none';
+                    });
+                }
+            });
+        </script>
         <div class="wrap">
             <h1>Students
                 <a href="<?php echo admin_url('admin.php?page=pilates-students&action=add'); ?>" class="page-title-action">Add New</a>
@@ -408,12 +289,6 @@ class Pilates_Admin
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
-                    <script>
-                        document.getElementById('import-students-button').addEventListener('click', function() {
-                            document.getElementById('import-students-form').style.display = 'block';
-                            this.style.display = 'none';
-                        });
-                    </script>
                 </table>
             <?php endif; ?>
         </div>
@@ -1005,6 +880,136 @@ Pilates Academy Team";
             ));
         } else {
             wp_send_json_error('Failed to update status');
+        }
+    }
+    // Dodaj ove metode u class-pilates-admin.php kao metode klase
+
+    public function export_students()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized user');
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'pilates_students';
+        $students = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC");
+
+        if (!$students) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('No students found to export')));
+            exit;
+        }
+
+        // Set headers to force download CSV
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=pilates_students_export_' . date('Y-m-d') . '.csv');
+
+        $output = fopen('php://output', 'w');
+
+        // CSV header
+        fputcsv($output, array('ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Primary Language', 'Date Joined', 'Validity Date', 'Status', 'User ID'));
+
+        // CSV data
+        foreach ($students as $student) {
+            fputcsv($output, array(
+                $student->id,
+                $student->first_name,
+                $student->last_name,
+                $student->email,
+                $student->phone,
+                $student->primary_language,
+                $student->date_joined,
+                $student->validity_date,
+                $student->status,
+                $student->user_id,
+            ));
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    public function import_students()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized user');
+        }
+
+        check_admin_referer('pilates_import_students_nonce', 'pilates_import_nonce');
+
+        if (!isset($_FILES['students_csv']) || $_FILES['students_csv']['error'] !== UPLOAD_ERR_OK) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('CSV file upload failed')));
+            exit;
+        }
+
+        $file = $_FILES['students_csv']['tmp_name'];
+
+        if (($handle = fopen($file, 'r')) !== false) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pilates_students';
+
+            $row = 0;
+            $imported = 0;
+            $updated = 0;
+
+            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                if ($row === 0) {
+                    // Skip header
+                    $row++;
+                    continue;
+                }
+
+                list($id, $first_name, $last_name, $email, $phone, $primary_language, $date_joined, $validity_date, $status, $user_id) = $data;
+
+                // Check if student exists
+                $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id));
+
+                if ($existing) {
+                    // Update existing
+                    $wpdb->update(
+                        $table_name,
+                        array(
+                            'first_name' => $first_name,
+                            'last_name' => $last_name,
+                            'email' => $email,
+                            'phone' => $phone,
+                            'primary_language' => $primary_language,
+                            'date_joined' => $date_joined,
+                            'validity_date' => $validity_date,
+                            'status' => $status,
+                            'user_id' => $user_id,
+                        ),
+                        array('id' => $id)
+                    );
+                    $updated++;
+                } else {
+                    // Insert new
+                    $wpdb->insert(
+                        $table_name,
+                        array(
+                            'first_name' => $first_name,
+                            'last_name' => $last_name,
+                            'email' => $email,
+                            'phone' => $phone,
+                            'primary_language' => $primary_language,
+                            'date_joined' => $date_joined,
+                            'validity_date' => $validity_date,
+                            'status' => $status,
+                            'user_id' => $user_id,
+                        )
+                    );
+                    $imported++;
+                }
+
+                $row++;
+            }
+
+            fclose($handle);
+
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=added&imported=' . $imported . '&updated=' . $updated));
+            exit;
+        } else {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Unable to open CSV file')));
+            exit;
         }
     }
 }

@@ -14,12 +14,46 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
     if (!is_wp_error($user)) {
         if (in_array('pilates_student', $user->roles)) {
-            wp_set_current_user($user->ID);
-            wp_set_auth_cookie($user->ID);
-            wp_redirect(home_url('/pilates-dashboard/'));
-            exit;
-        } else {
-            $error = 'Access denied. Student account required.';
+            // Check student status in database
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pilates_students';
+            $student = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM $table_name WHERE user_id = %d",
+                $user->ID
+            ));
+
+            if (!$student) {
+                $error = 'Student record not found. Please contact support.';
+            } else {
+                // Check if account has expired
+                if ($student->validity_date && strtotime($student->validity_date) < time()) {
+                    $wpdb->update($table_name, array('status' => 'inactive'), array('id' => $student->id));
+                    $expired_date = date('M j, Y', strtotime($student->validity_date));
+                    $error = "Your account has expired on {$expired_date}. Please contact support to renew your membership.";
+                }
+                // Check if account is active
+                else if ($student->status !== 'active') {
+                    $error = 'Your account is currently inactive. Please contact support to activate your account.';
+                }
+                // Login successful
+                else {
+                    wp_set_current_user($user->ID);
+                    wp_set_auth_cookie($user->ID);
+
+                    // Update last login
+                    $wpdb->update(
+                        $table_name,
+                        array(
+                            'last_login' => current_time('mysql'),
+                            'login_count' => ($student->login_count ?? 0) + 1
+                        ),
+                        array('id' => $student->id)
+                    );
+
+                    wp_redirect(home_url('/pilates-dashboard/'));
+                    exit;
+                }
+            }
         }
     } else {
         $error = 'Invalid email or password.';
@@ -191,7 +225,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
                 <p>Welcome back! Please sign in to your account.</p>
             </div>
 
-            <?php if (isset($error)): ?>
+            <?php if (isset($error) && !empty($error)): ?>
 
                 <div class="error"><?php echo esc_html($error); ?></div>
             <?php endif; ?>
