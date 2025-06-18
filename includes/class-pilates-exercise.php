@@ -2,220 +2,123 @@
 
 class Pilates_Exercise
 {
-
     public function __construct()
     {
-        add_action('init', array($this, 'register_post_type'));
-        add_action('init', array($this, 'register_taxonomies'));
-        add_action('add_meta_boxes', array($this, 'add_meta_boxes'));
-        add_action('save_post', array($this, 'save_exercise_meta'));
         add_filter('manage_pilates_exercise_posts_columns', array($this, 'set_custom_columns'));
         add_action('manage_pilates_exercise_posts_custom_column', array($this, 'custom_column_content'), 10, 2);
+        add_filter('manage_edit-pilates_exercise_sortable_columns', array($this, 'sortable_columns'));
+        add_action('init', array($this, 'register_acf_fields'), 20);
     }
 
-    public function register_post_type()
+    public function register_acf_fields()
     {
+        if (function_exists('acf_add_local_field_group')):
 
-        $labels = array(
-            'name' => 'Exercises',
-            'singular_name' => 'Exercise',
-            'add_new' => 'Add New Exercise',
-            'add_new_item' => 'Add New Exercise',
-            'edit_item' => 'Edit Exercise',
-            'new_item' => 'New Exercise',
-            'view_item' => 'View Exercise',
-            'search_items' => 'Search Exercises',
-            'not_found' => 'No exercises found',
-            'not_found_in_trash' => 'No exercises found in trash'
-        );
+            acf_add_local_field_group(array(
+                'key' => 'group_pilates_exercise_videos',
+                'title' => 'Exercise Video & Details',
+                'fields' => array(
+                    array(
+                        'key' => 'field_exercise_order',
+                        'label' => 'Exercise Order',
+                        'name' => 'exercise_order',
+                        'type' => 'number',
+                        'required' => 1,
+                        'default_value' => 1,
+                        'min' => 1,
+                    ),
+                    array(
+                        'key' => 'field_exercise_duration',
+                        'label' => 'Duration (minutes)',
+                        'name' => 'exercise_duration',
+                        'type' => 'number',
+                        'min' => 1,
+                    ),
+                    array(
+                        'key' => 'field_exercise_short_description',
+                        'label' => 'Short Description',
+                        'name' => 'exercise_short_description',
+                        'type' => 'wysiwyg',
+                        'instructions' => 'Brief description shown above video',
+                        'toolbar' => 'basic',
+                        'media_upload' => 0,
+                        'tabs' => 'all',
+                        'delay' => 0,
+                    ),
+                    array(
+                        'key' => 'field_exercise_video',
+                        'label' => 'Exercise Video (MP4)',
+                        'name' => 'exercise_video',
+                        'type' => 'file',
+                        'instructions' => 'Upload MP4 video file',
+                        'return_format' => 'array',
+                        'library' => 'all',
+                        'mime_types' => 'mp4',
+                    ),
+                    array(
+                        'key' => 'field_subtitles',
+                        'label' => 'Subtitles (CC)',
+                        'name' => 'subtitles',
+                        'type' => 'repeater',
+                        'layout' => 'table',
+                        'button_label' => 'Add Subtitle Track',
+                        'min' => 0,
+                        'max' => 3,
+                        'sub_fields' => array(
+                            array(
+                                'key' => 'field_subtitle_language',
+                                'label' => 'Language',
+                                'name' => 'language',
+                                'type' => 'select',
+                                'choices' => array(
+                                    'en' => 'English',
+                                    'de' => 'German',
+                                    'uk' => 'Ukrainian'
+                                ),
+                                'required' => 1,
+                            ),
+                            array(
+                                'key' => 'field_subtitle_file',
+                                'label' => 'Subtitle File (.vtt or .srt)',
+                                'name' => 'subtitle_file',
+                                'type' => 'file',
+                                'return_format' => 'array',
+                                'mime_types' => 'vtt,srt',
+                                'required' => 1,
+                            ),
+                        ),
+                    ),
+                    array(
+                        'key' => 'field_exercise_detailed_description',
+                        'label' => 'Detailed Instructions',
+                        'name' => 'exercise_detailed_description',
+                        'type' => 'wysiwyg',
+                        'instructions' => 'Detailed instructions shown below video',
+                        'toolbar' => 'full',
+                        'media_upload' => 1,
+                        'tabs' => 'all',
+                        'delay' => 0,
+                    ),
+                ),
+                'location' => array(
+                    array(
+                        array(
+                            'param' => 'post_type',
+                            'operator' => '==',
+                            'value' => 'pilates_exercise',
+                        ),
+                    ),
+                ),
+                'menu_order' => 0,
+                'position' => 'normal',
+                'style' => 'default',
+                'label_placement' => 'top',
+                'instruction_placement' => 'label',
+            ));
 
-        $args = array(
-            'labels' => $labels,
-            'public' => false,
-            'show_ui' => true,
-            'show_in_menu' => true,
-            'capability_type' => 'post',
-            'hierarchical' => false,
-            'supports' => array('title', 'editor', 'thumbnail'),
-            'has_archive' => false,
-            'menu_icon' => 'dashicons-heart',
-            'rewrite' => false
-        );
-
-        register_post_type('pilates_exercise', $args);
-        error_log('Pilates: About to register post type with args: ' . print_r($args, true));
-
-        $result = register_post_type('pilates_exercise', $args);
-        error_log('Pilates: Post type registration result: ' . print_r($result, true));
+        endif;
     }
 
-    public function register_taxonomies()
-    {
-        // Days taxonomy
-        register_taxonomy('exercise_day', 'pilates_exercise', array(
-            'hierarchical' => true,
-            'labels' => array(
-                'name' => 'Days',
-                'singular_name' => 'Day',
-                'add_new_item' => 'Add New Day'
-            ),
-            'show_ui' => true,
-            'show_admin_column' => true,
-            'query_var' => true,
-            'public' => false,
-            'show_in_menu' => true
-        ));
-
-        // Equipment/Position taxonomy
-        register_taxonomy('exercise_equipment', 'pilates_exercise', array(
-            'hierarchical' => true,
-            'labels' => array(
-                'name' => 'Equipment/Position',
-                'singular_name' => 'Equipment',
-                'add_new_item' => 'Add New Equipment'
-            ),
-            'show_ui' => true,
-            'show_admin_column' => true,
-            'query_var' => true,
-            'public' => false,
-            'show_in_menu' => true
-        ));
-    }
-
-    public function add_meta_boxes()
-    {
-        add_meta_box(
-            'exercise_details',
-            'Exercise Details',
-            array($this, 'exercise_details_callback'),
-            'pilates_exercise',
-            'normal',
-            'high'
-        );
-
-        add_meta_box(
-            'exercise_videos',
-            'Videos & Languages',
-            array($this, 'exercise_videos_callback'),
-            'pilates_exercise',
-            'normal',
-            'high'
-        );
-    }
-
-    public function exercise_details_callback($post)
-    {
-        wp_nonce_field('pilates_exercise_meta', 'pilates_exercise_nonce');
-
-        $order = get_post_meta($post->ID, '_exercise_order', true);
-        $difficulty = get_post_meta($post->ID, '_exercise_difficulty', true);
-        $duration = get_post_meta($post->ID, '_exercise_duration', true);
-?>
-        <table class="form-table">
-            <tr>
-                <th><label for="exercise_order">Order</label></th>
-                <td><input type="number" id="exercise_order" name="exercise_order" value="<?php echo esc_attr($order); ?>" class="small-text" /></td>
-            </tr>
-            <tr>
-                <th><label for="exercise_difficulty">Difficulty</label></th>
-                <td>
-                    <select id="exercise_difficulty" name="exercise_difficulty">
-                        <option value="beginner" <?php selected($difficulty, 'beginner'); ?>>Beginner</option>
-                        <option value="intermediate" <?php selected($difficulty, 'intermediate'); ?>>Intermediate</option>
-                        <option value="advanced" <?php selected($difficulty, 'advanced'); ?>>Advanced</option>
-                    </select>
-                </td>
-            </tr>
-            <tr>
-                <th><label for="exercise_duration">Duration (minutes)</label></th>
-                <td><input type="number" id="exercise_duration" name="exercise_duration" value="<?php echo esc_attr($duration); ?>" class="small-text" /></td>
-            </tr>
-        </table>
-    <?php
-    }
-
-    public function exercise_videos_callback($post)
-    {
-        $languages = array('en' => 'English', 'de' => 'German', 'uk' => 'Ukrainian');
-        $videos = get_post_meta($post->ID, '_exercise_videos', true);
-        if (!is_array($videos)) $videos = array();
-    ?>
-        <div id="exercise-videos">
-            <?php foreach ($languages as $lang_code => $lang_name): ?>
-                <div class="language-section">
-                    <h4><?php echo $lang_name; ?></h4>
-                    <table class="form-table">
-                        <tr>
-                            <th><label for="video_<?php echo $lang_code; ?>">Video URL</label></th>
-                            <td><input type="url" id="video_<?php echo $lang_code; ?>" name="videos[<?php echo $lang_code; ?>][url]" value="<?php echo esc_attr($videos[$lang_code]['url'] ?? ''); ?>" class="regular-text" /></td>
-                        </tr>
-                        <tr>
-                            <th><label for="description_<?php echo $lang_code; ?>">Description</label></th>
-                            <td><textarea id="description_<?php echo $lang_code; ?>" name="videos[<?php echo $lang_code; ?>][description]" rows="4" class="large-text"><?php echo esc_textarea($videos[$lang_code]['description'] ?? ''); ?></textarea></td>
-                        </tr>
-                        <tr>
-                            <th><label for="instructions_<?php echo $lang_code; ?>">Instructions</label></th>
-                            <td><textarea id="instructions_<?php echo $lang_code; ?>" name="videos[<?php echo $lang_code; ?>][instructions]" rows="6" class="large-text"><?php echo esc_textarea($videos[$lang_code]['instructions'] ?? ''); ?></textarea></td>
-                        </tr>
-                    </table>
-                </div>
-                <hr>
-            <?php endforeach; ?>
-        </div>
-
-        <style>
-            .language-section {
-                margin-bottom: 20px;
-            }
-
-            .language-section h4 {
-                margin-bottom: 10px;
-                color: #23282d;
-            }
-        </style>
-<?php
-    }
-
-    public function save_exercise_meta($post_id)
-    {
-        if (!isset($_POST['pilates_exercise_nonce']) || !wp_verify_nonce($_POST['pilates_exercise_nonce'], 'pilates_exercise_meta')) {
-            return;
-        }
-
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-            return;
-        }
-
-        if (!current_user_can('edit_post', $post_id)) {
-            return;
-        }
-
-        // Save exercise details
-        if (isset($_POST['exercise_order'])) {
-            update_post_meta($post_id, '_exercise_order', absint($_POST['exercise_order']));
-        }
-
-        if (isset($_POST['exercise_difficulty'])) {
-            update_post_meta($post_id, '_exercise_difficulty', sanitize_text_field($_POST['exercise_difficulty']));
-        }
-
-        if (isset($_POST['exercise_duration'])) {
-            update_post_meta($post_id, '_exercise_duration', absint($_POST['exercise_duration']));
-        }
-
-        // Save videos data
-        if (isset($_POST['videos'])) {
-            $videos = array();
-            foreach ($_POST['videos'] as $lang => $data) {
-                $videos[$lang] = array(
-                    'url' => esc_url_raw($data['url']),
-                    'description' => sanitize_textarea_field($data['description']),
-                    'instructions' => sanitize_textarea_field($data['instructions'])
-                );
-            }
-            update_post_meta($post_id, '_exercise_videos', $videos);
-        }
-    }
 
     public function set_custom_columns($columns)
     {
@@ -226,6 +129,7 @@ class Pilates_Exercise
         $new_columns['exercise_equipment'] = 'Equipment';
         $new_columns['order'] = 'Order';
         $new_columns['difficulty'] = 'Difficulty';
+        $new_columns['duration'] = 'Duration';
         $new_columns['date'] = $columns['date'];
 
         return $new_columns;
@@ -235,11 +139,25 @@ class Pilates_Exercise
     {
         switch ($column) {
             case 'order':
-                echo get_post_meta($post_id, '_exercise_order', true);
+                $order = get_field('exercise_order', $post_id);
+                echo $order ? $order : '-';
                 break;
             case 'difficulty':
-                echo ucfirst(get_post_meta($post_id, '_exercise_difficulty', true));
+                $difficulty = get_field('exercise_difficulty', $post_id);
+                echo $difficulty ? ucfirst($difficulty) : '-';
+                break;
+            case 'duration':
+                $duration = get_field('exercise_duration', $post_id);
+                echo $duration ? $duration . ' min' : '-';
                 break;
         }
+    }
+
+    public function sortable_columns($columns)
+    {
+        $columns['order'] = 'order';
+        $columns['difficulty'] = 'difficulty';
+        $columns['duration'] = 'duration';
+        return $columns;
     }
 }

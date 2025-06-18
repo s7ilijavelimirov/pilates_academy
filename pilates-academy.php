@@ -22,26 +22,25 @@ define('PILATES_VERSION', '1.0.0');
 register_activation_hook(__FILE__, 'pilates_activate');
 function pilates_activate()
 {
-    // Load main class for table creation
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
-    $pilates_main = new Pilates_Main();
+    $pilates_main = Pilates_Main::get_instance(); // Koristi singleton
     $pilates_main->create_tables();
+    $pilates_main->register_post_types_and_taxonomies();
 
-    // Register CPT immediately during activation
-    require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-exercise.php';
-    $exercise = new Pilates_Exercise();
-    $exercise->register_post_type();
-    $exercise->register_taxonomies();
+    // STUDENT ROLA
+    add_role('pilates_student', 'Pilates Student', array(
+        'read' => true,
+        'pilates_access' => true
+    ));
 
-    // Flush rewrite rules for custom post types
-    flush_rewrite_rules();
+    delete_option('rewrite_rules');
+    flush_rewrite_rules(true);
 }
 
 // Plugin deactivation  
 register_deactivation_hook(__FILE__, 'pilates_deactivate');
 function pilates_deactivate()
 {
-    // Flush rewrite rules
     flush_rewrite_rules();
 }
 
@@ -49,7 +48,6 @@ function pilates_deactivate()
 add_action('plugins_loaded', 'pilates_init');
 function pilates_init()
 {
-    // Load plugin classes
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
-    new Pilates_Main();
+    Pilates_Main::get_instance(); // Koristi singleton umesto new
 }
