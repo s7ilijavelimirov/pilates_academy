@@ -17,7 +17,6 @@ class Pilates_Main
         add_action('init', array($this, 'init'));
         add_action('init', array($this, 'add_rewrite_rules'));
         add_action('init', array($this, 'handle_subtitle_request'));
-        add_action('init', array($this, 'create_taxonomy_relationships')); // Dodajte ovo
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
         add_filter('upload_mimes', array($this, 'allow_svg_upload'));
@@ -208,26 +207,6 @@ class Pilates_Main
             );
         }
     }
-    public function create_taxonomy_relationships()
-    {
-        // Kreirajte hijerarhijsku vezu između dana i pozicija
-        add_filter('term_relationship_query', function ($args, $taxonomy, $term_taxonomy_id) {
-            if ($taxonomy === 'exercise_position') {
-                // Dozvoljava povezivanje pozicija sa danima
-                $args['parent'] = 0; // Vraća samo top-level pozicije po defaultu
-            }
-            return $args;
-        }, 10, 3);
-
-        // Omogućuje prikaz hijerarhije u admin panelu
-        add_filter('taxonomy_parent_dropdown_args', function ($args, $taxonomy) {
-            if ($taxonomy === 'exercise_position') {
-                $args['parent'] = 0;
-                $args['taxonomy'] = 'exercise_day'; // Pozicije mogu imati dana kao roditelje
-            }
-            return $args;
-        }, 10, 2);
-    }
     public function register_post_types_and_taxonomies()
     {
         // Register Exercise post type
@@ -248,13 +227,13 @@ class Pilates_Main
 
         $args = array(
             'labels' => $labels,
-            'public' => false,
+            'public' => false, // postavi na true ako želiš da se prikazuje i na frontendu
             'show_ui' => true,
             'show_in_menu' => true,
             'menu_position' => 31,
             'capability_type' => 'post',
-            'hierarchical' => false,
-            'supports' => array('title', 'editor', 'thumbnail'),
+            'hierarchical' => true, // OMOGUĆAVA PARENT/CHILD
+            'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'), // PAGE ATTRIBUTES = Parent & Order
             'has_archive' => false,
             'rewrite' => false,
             'query_var' => true,
@@ -263,7 +242,7 @@ class Pilates_Main
 
         register_post_type('pilates_exercise', $args);
 
-        // Register taxonomies
+        // Register taxonomy: Days
         register_taxonomy('exercise_day', 'pilates_exercise', array(
             'hierarchical' => true,
             'labels' => array(
@@ -278,6 +257,7 @@ class Pilates_Main
             'show_in_menu' => true
         ));
 
+        // Register taxonomy: Positions
         register_taxonomy('exercise_position', 'pilates_exercise', array(
             'hierarchical' => true,
             'labels' => array(

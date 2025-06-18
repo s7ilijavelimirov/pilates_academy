@@ -192,6 +192,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
             </div>
 
             <?php if (isset($error)): ?>
+
                 <div class="error"><?php echo esc_html($error); ?></div>
             <?php endif; ?>
 

@@ -8,22 +8,10 @@ class Pilates_Exercise
         add_action('manage_pilates_exercise_posts_custom_column', array($this, 'custom_column_content'), 10, 2);
         add_filter('manage_edit-pilates_exercise_sortable_columns', array($this, 'sortable_columns'));
         add_action('init', array($this, 'register_acf_fields'), 20);
-        add_action('save_post_pilates_exercise', array($this, 'save_related_exercises'), 10, 3);
+        add_action('restrict_manage_posts', array($this, 'add_day_filter_dropdown'));
+        add_action('pre_get_posts', array($this, 'modify_admin_query'));
     }
-    // Dodajte metodu za povezivanje vežbi
-    public function save_related_exercises($post_id, $post, $update)
-    {
-        // Ne radimo ništa ako je autosave ili ako je novo kreiranje posta
-        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
-        if (!$update) return;
 
-        // Proverite da li su postavljena povezana polja
-        if (isset($_POST['related_exercises'])) {
-            // Sačuvajte podatke kao meta polje
-            $related_exercises = array_map('intval', $_POST['related_exercises']);
-            update_post_meta($post_id, '_related_exercises', $related_exercises);
-        }
-    }
     public function register_acf_fields()
     {
         if (function_exists('acf_add_local_field_group')):
@@ -32,16 +20,6 @@ class Pilates_Exercise
                 'key' => 'group_pilates_exercise_videos',
                 'title' => 'Exercise Video & Details',
                 'fields' => array(
-                    array(
-                        'key' => 'field_related_exercises',
-                        'label' => 'Related Exercises',
-                        'name' => 'related_exercises',
-                        'type' => 'relationship',
-                        'instructions' => 'Select exercises that are variations of this exercise',
-                        'required' => 0,
-                        'post_type' => array('pilates_exercise'),
-                        'return_format' => 'id',
-                    ),
                     array(
                         'key' => 'field_exercise_order',
                         'label' => 'Exercise Order',
@@ -155,7 +133,6 @@ class Pilates_Exercise
         $new_columns['exercise_day'] = 'Day';
         $new_columns['exercise_position'] = 'Position';
         $new_columns['order'] = 'Order';
-        $new_columns['difficulty'] = 'Difficulty';
         $new_columns['duration'] = 'Duration';
         $new_columns['date'] = $columns['date'];
 
@@ -164,13 +141,21 @@ class Pilates_Exercise
     public function custom_column_content($column, $post_id)
     {
         switch ($column) {
+            case 'exercise_day':
+                $terms = get_the_terms($post_id, 'exercise_day');
+                if (!empty($terms)) {
+                    $day_links = array();
+                    foreach ($terms as $term) {
+                        $day_links[] = $term->name;
+                    }
+                    echo implode(', ', $day_links);
+                } else {
+                    echo '-';
+                }
+                break;
             case 'order':
                 $order = get_field('exercise_order', $post_id);
                 echo $order ? $order : '-';
-                break;
-            case 'difficulty':
-                $difficulty = get_field('exercise_difficulty', $post_id);
-                echo $difficulty ? ucfirst($difficulty) : '-';
                 break;
             case 'duration':
                 $duration = get_field('exercise_duration', $post_id);
@@ -190,12 +175,64 @@ class Pilates_Exercise
                 break;
         }
     }
+    public function add_day_filter_dropdown()
+    {
+        global $typenow;
+
+        if ($typenow !== 'pilates_exercise') {
+            return;
+        }
+
+        $taxonomy = 'exercise_day';
+        $selected = isset($_GET[$taxonomy]) ? $_GET[$taxonomy] : '';
+        $info_taxonomy = get_taxonomy($taxonomy);
+
+        wp_dropdown_categories(array(
+            'show_option_all' => __('All Days'),
+            'taxonomy' => $taxonomy,
+            'name' => $taxonomy,
+            'orderby' => 'name',
+            'selected' => $selected,
+            'hierarchical' => true,
+            'depth' => 2,
+            'show_count' => false,
+            'hide_empty' => false,
+        ));
+    }
+    public function modify_admin_query($query)
+    {
+        if (!is_admin() || !$query->is_main_query()) {
+            return;
+        }
+
+        $post_type = $query->get('post_type');
+        if ($post_type !== 'pilates_exercise') {
+            return;
+        }
+
+        // Ako korisnik nije ručno kliknuo da sortira nešto
+        if (!$query->get('orderby')) {
+            $query->set('meta_key', 'exercise_order');
+            $query->set('orderby', 'meta_value_num');
+            $query->set('order', 'ASC');
+        }
+
+        // Dodaj filter za exercise_day (kao što si već imao ranije)
+        $taxonomy = 'exercise_day';
+        if (isset($_GET[$taxonomy]) && is_numeric($_GET[$taxonomy]) && $_GET[$taxonomy] != 0) {
+            $term = get_term_by('id', $_GET[$taxonomy], $taxonomy);
+            if ($term) {
+                $query->query_vars[$taxonomy] = $term->slug;
+            }
+        }
+    }
 
     public function sortable_columns($columns)
     {
         $columns['order'] = 'order';
-        $columns['difficulty'] = 'difficulty';
         $columns['duration'] = 'duration';
+        $columns['exercise_day'] = 'exercise_day';
+        $columns['exercise_position'] = 'exercise_position';
         return $columns;
     }
 }

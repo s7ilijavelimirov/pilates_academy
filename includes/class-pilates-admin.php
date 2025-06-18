@@ -16,6 +16,9 @@ class Pilates_Admin
         // AJAX handlers
         add_action('wp_ajax_pilates_update_student', array($this, 'ajax_update_student'));
         add_action('wp_ajax_pilates_toggle_status', array($this, 'ajax_toggle_status'));
+
+        add_action('admin_post_pilates_export_students', 'pilates_export_students_callback');
+        add_action('admin_post_pilates_import_students', 'pilates_import_students_callback');
     }
 
     public function add_admin_menu()
@@ -135,7 +138,137 @@ class Pilates_Admin
                 break;
         }
     }
+    function pilates_import_students_callback()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized user');
+        }
 
+        check_admin_referer('pilates_import_students_nonce', 'pilates_import_nonce');
+
+        if (!isset($_FILES['students_csv']) || $_FILES['students_csv']['error'] !== UPLOAD_ERR_OK) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('CSV file upload failed')));
+            exit;
+        }
+
+        $file = $_FILES['students_csv']['tmp_name'];
+
+        if (($handle = fopen($file, 'r')) !== false) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pilates_students';
+
+            $row = 0;
+            $imported = 0;
+            $updated = 0;
+
+            while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                if ($row === 0) {
+                    // Preskoči header red
+                    $row++;
+                    continue;
+                }
+
+                // Podaci iz CSV: red po red, obrati pažnju na redosled kolona iz Export funkcije
+                list($id, $first_name, $last_name, $email, $phone, $primary_language, $date_joined, $validity_date, $status, $user_id) = $data;
+
+                // Provera da li student sa tim ID već postoji
+                $existing = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $id));
+
+                if ($existing) {
+                    // Update postojeći
+                    $wpdb->update(
+                        $table_name,
+                        array(
+                            'first_name' => $first_name,
+                            'last_name' => $last_name,
+                            'email' => $email,
+                            'phone' => $phone,
+                            'primary_language' => $primary_language,
+                            'date_joined' => $date_joined,
+                            'validity_date' => $validity_date,
+                            'status' => $status,
+                            'user_id' => $user_id,
+                        ),
+                        array('id' => $id),
+                        array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'),
+                        array('%d')
+                    );
+                    $updated++;
+                } else {
+                    // Insert novi
+                    $wpdb->insert(
+                        $table_name,
+                        array(
+                            'first_name' => $first_name,
+                            'last_name' => $last_name,
+                            'email' => $email,
+                            'phone' => $phone,
+                            'primary_language' => $primary_language,
+                            'date_joined' => $date_joined,
+                            'validity_date' => $validity_date,
+                            'status' => $status,
+                            'user_id' => $user_id,
+                        ),
+                        array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d')
+                    );
+                    $imported++;
+                }
+
+                $row++;
+            }
+
+            fclose($handle);
+
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=added&imported=' . $imported . '&updated=' . $updated));
+            exit;
+        } else {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Unable to open CSV file')));
+            exit;
+        }
+    }
+    function pilates_export_students_callback()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized user');
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'pilates_students';
+        $students = $wpdb->get_results("SELECT * FROM $table_name ORDER BY created_at DESC");
+
+        if (!$students) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('No students found to export')));
+            exit;
+        }
+
+        // Set headers to force download CSV
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=pilates_students_export_' . date('Y-m-d') . '.csv');
+
+        $output = fopen('php://output', 'w');
+
+        // Ispiši header kolone CSV fajla (bilo koje koje želiš da exportuješ)
+        fputcsv($output, array('ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Primary Language', 'Date Joined', 'Validity Date', 'Status', 'User ID'));
+
+        // Ispiši podatke o studentima
+        foreach ($students as $student) {
+            fputcsv($output, array(
+                $student->id,
+                $student->first_name,
+                $student->last_name,
+                $student->email,
+                $student->phone,
+                $student->primary_language,
+                $student->date_joined,
+                $student->validity_date,
+                $student->status,
+                $student->user_id,
+            ));
+        }
+
+        fclose($output);
+        exit;
+    }
     private function list_students()
     {
         global $wpdb;
@@ -158,9 +291,25 @@ class Pilates_Admin
                 echo '<div class="notice notice-error"><p>Error: ' . esc_html($error) . '</p></div>';
             }
         }
+        if (isset($_GET['imported']) || isset($_GET['updated'])) {
+            $imported = intval($_GET['imported'] ?? 0);
+            $updated = intval($_GET['updated'] ?? 0);
+            echo '<div class="notice notice-success"><p>Students imported: ' . $imported . ', updated: ' . $updated . '.</p></div>';
+        }
+
     ?>
         <div class="wrap">
-            <h1>Students <a href="<?php echo admin_url('admin.php?page=pilates-students&action=add'); ?>" class="page-title-action">Add New</a></h1>
+            <h1>Students
+                <a href="<?php echo admin_url('admin.php?page=pilates-students&action=add'); ?>" class="page-title-action">Add New</a>
+                <a href="<?php echo admin_url('admin-post.php?action=pilates_export_students'); ?>" class="page-title-action" style="margin-left: 10px;">Export Students</a>
+                <button id="import-students-button" class="page-title-action" style="margin-left: 10px;">Import Students</button>
+            </h1>
+            <form id="import-students-form" method="post" enctype="multipart/form-data" action="<?php echo admin_url('admin-post.php'); ?>" style="display:none;">
+                <?php wp_nonce_field('pilates_import_students_nonce', 'pilates_import_nonce'); ?>
+                <input type="hidden" name="action" value="pilates_import_students">
+                <input type="file" name="students_csv" accept=".csv" required>
+                <input type="submit" class="button button-primary" value="Upload CSV">
+            </form>
 
             <?php if (empty($students)): ?>
                 <div class="notice notice-info">
@@ -259,6 +408,12 @@ class Pilates_Admin
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
+                    <script>
+                        document.getElementById('import-students-button').addEventListener('click', function() {
+                            document.getElementById('import-students-form').style.display = 'block';
+                            this.style.display = 'none';
+                        });
+                    </script>
                 </table>
             <?php endif; ?>
         </div>
