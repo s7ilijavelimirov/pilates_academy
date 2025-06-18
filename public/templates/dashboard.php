@@ -71,6 +71,10 @@ if ($_POST && isset($_POST['update_profile'])) {
 </head>
 
 <body>
+    <button id="theme-toggle" class="pilates-theme-toggle">
+        <span class="icon">🌙</span>
+        <span class="text">Dark Mode</span>
+    </button>
     <div class="dashboard-container">
         <!-- Include Sidebar -->
         <?php include PILATES_PLUGIN_PATH . 'public/templates/sidebar.php'; ?>
@@ -240,8 +244,21 @@ if ($_POST && isset($_POST['update_profile'])) {
                         <h1 class="content-title"><?php echo esc_html($exercise->post_title); ?></h1>
                         <div class="breadcrumb">
                             <a href="<?php echo home_url('/pilates-dashboard/'); ?>">Dashboard</a> /
-                            <a href="<?php echo home_url('/pilates-dashboard/?day=' . $current_day); ?>">Day <?php echo $current_day; ?></a> /
-                            Exercise
+                            <a href="<?php echo home_url('/pilates-dashboard/?day=' . $current_day); ?>">
+                                <?php
+                                $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                echo $day_term ? $day_term->name : 'Day ' . $current_day;
+                                ?>
+                            </a> /
+                            <?php
+                            // Get exercise position
+                            $exercise_positions = get_the_terms($exercise->ID, 'exercise_position');
+                            if ($exercise_positions && !is_wp_error($exercise_positions)) {
+                                $position = $exercise_positions[0]; // Get first position
+                                echo '<span>' . esc_html($position->name) . '</span> / ';
+                            }
+                            ?>
+                            <?php echo esc_html($exercise->post_title); ?>
                         </div>
                     </div>
 
@@ -261,10 +278,12 @@ if ($_POST && isset($_POST['update_profile'])) {
                                         <span class="meta-item">🕐 <?php echo $duration; ?> min</span>
                                     <?php endif; ?>
 
-                                    <?php if ($equipment): ?>
-                                        <?php print_r($exercise_id); ?>
-                                        <span class="meta-item">🏋️ <?php //echo $equipment[0]->name; 
-                                                                    ?></span>
+                                    <?php
+                                    // Get exercise position for meta display
+                                    $exercise_positions = get_the_terms($exercise->ID, 'exercise_position');
+                                    if ($exercise_positions && !is_wp_error($exercise_positions)):
+                                    ?>
+                                        <span class="meta-item">📍 <?php echo esc_html($exercise_positions[0]->name); ?></span>
                                     <?php endif; ?>
                                 </div>
 
@@ -337,79 +356,131 @@ if ($_POST && isset($_POST['update_profile'])) {
                     </div>
 
                     <div class="exercises-section">
-                        <h2 class="section-title">Day <?php echo $current_day; ?> Exercises</h2>
+                        <?php
+                        // Get current day taxonomy term - AUTOMATSKI ČITA PRAVI NAZIV
+                        $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                        $day_title = $day_term ? $day_term->name : 'Day ' . $current_day;
+                        ?>
 
-                        <div class="exercise-grid">
-                            <?php
-                            // Get exercises for current day
-                            $exercises = get_posts(array(
-                                'post_type' => 'pilates_exercise',
-                                'posts_per_page' => -1,
-                                'tax_query' => array(
-                                    array(
-                                        'taxonomy' => 'exercise_day',
-                                        'field' => 'slug',
-                                        'terms' => 'day-' . $current_day
-                                    )
-                                ),
-                                'meta_key' => 'exercise_order',
-                                'orderby' => 'meta_value_num',
-                                'order' => 'ASC'
-                            ));
+                        <h2 class="section-title"><?php echo esc_html($day_title); ?> Training</h2>
 
-                            if ($exercises):
-                                foreach ($exercises as $exercise):
-                                    $duration = get_field('exercise_duration', $exercise->ID);
-                                    $order = get_field('exercise_order', $exercise->ID);
-                                    $short_desc = get_field('exercise_short_description', $exercise->ID);
-                                    $equipment = get_the_terms($exercise->ID, 'exercise_equipment');
-                                    $featured_image = get_the_post_thumbnail_url($exercise->ID, 'medium');
-                                    if (!$featured_image) {
-                                        $featured_image = wp_get_attachment_url(get_post_thumbnail_id($exercise->ID));
-                                    }
-                            ?>
-                                    <div class="exercise-card" onclick="window.location.href='<?php echo home_url('/pilates-dashboard/?day=' . $current_day . '&exercise=' . $exercise->ID); ?>'">
-                                        <div class="exercise-image" <?php if ($featured_image): ?>style="background-image: url('<?php echo $featured_image; ?>')" <?php endif; ?>>
-                                            <?php if (!$featured_image): ?>
-                                                🎯 Exercise Preview
-                                            <?php endif; ?>
-                                        </div>
+                        <?php
+                        // Get exercises for current day prvo da vidimo šta imamo
+                        $exercises_query = new WP_Query(array(
+                            'post_type' => 'pilates_exercise',
+                            'posts_per_page' => -1,
+                            'tax_query' => array(
+                                array(
+                                    'taxonomy' => 'exercise_day',
+                                    'field' => 'slug',
+                                    'terms' => 'day-' . $current_day
+                                )
+                            ),
+                            'fields' => 'ids'
+                        ));
 
-                                        <div class="exercise-card-content">
-                                            <h3 class="exercise-card-title"><?php echo esc_html($exercise->post_title); ?></h3>
+                        $exercise_ids = $exercises_query->posts;
 
-                                            <div class="exercise-card-meta">
-                                                <?php if ($order): ?>
-                                                    <span class="meta-tag">#<?php echo $order; ?></span>
-                                                <?php endif; ?>
+                        if (!empty($exercise_ids)) {
+                            // Get unique positions from these exercises
+                            $positions = wp_get_object_terms($exercise_ids, 'exercise_position');
 
-                                                <?php if ($duration): ?>
-                                                    <span class="meta-tag">🕐 <?php echo $duration; ?>min</span>
-                                                <?php endif; ?>
+                            // Remove duplicates properly
+                            $unique_positions = array();
+                            foreach ($positions as $position) {
+                                $unique_positions[$position->term_id] = $position;
+                            }
+                            $positions = array_values($unique_positions);
+                        } else {
+                            $positions = array();
+                        }
 
-                                                <!-- <?php if ($equipment): ?>
-                                                    <span class="meta-tag">🏋️ <?php //echo $equipment[0]->name; 
-                                                                                ?></span>
-                                                <?php endif; ?> -->
-                                            </div>
+                        if (!empty($positions)):
+                            foreach ($positions as $position):
+                                // Get exercises for this position and day - KORISTI menu_order umesto ACF
+                                $position_exercises = get_posts(array(
+                                    'post_type' => 'pilates_exercise',
+                                    'posts_per_page' => -1,
+                                    'tax_query' => array(
+                                        'relation' => 'AND',
+                                        array(
+                                            'taxonomy' => 'exercise_day',
+                                            'field' => 'slug',
+                                            'terms' => 'day-' . $current_day
+                                        ),
+                                        array(
+                                            'taxonomy' => 'exercise_position',
+                                            'field' => 'term_id',
+                                            'terms' => $position->term_id
+                                        )
+                                    ),
+                                    'orderby' => 'menu_order', // WordPress built-in order
+                                    'order' => 'ASC'
+                                ));
 
-                                            <?php if ($short_desc): ?>
-                                                <div class="exercise-card-description">
-                                                    <?php echo wp_trim_words(strip_tags($short_desc), 15); ?>
+                                if (!empty($position_exercises)):
+                        ?>
+                                    <div class="position-section">
+                                        <h3 class="position-title">
+                                            <span class="position-icon">🏋️</span>
+                                            <?php echo esc_html($position->name); ?>
+                                            <span class="exercise-count">(<?php echo count($position_exercises); ?> exercises)</span>
+                                        </h3>
+
+                                        <?php if ($position->description): ?>
+                                            <p class="position-description"><?php echo esc_html($position->description); ?></p>
+                                        <?php endif; ?>
+
+                                        <div class="exercise-grid">
+                                            <?php
+                                            foreach ($position_exercises as $exercise):
+                                                $duration = get_field('exercise_duration', $exercise->ID);
+                                                $short_desc = get_field('exercise_short_description', $exercise->ID);
+                                                $featured_image = get_the_post_thumbnail_url($exercise->ID, 'medium');
+
+                                                // menu_order umesto ACF order
+                                                $order = $exercise->menu_order;
+                                            ?>
+                                                <div class="exercise-card" onclick="window.location.href='<?php echo home_url('/pilates-dashboard/?day=' . $current_day . '&exercise=' . $exercise->ID); ?>'">
+                                                    <div class="exercise-image" <?php if ($featured_image): ?>style="background-image: url('<?php echo $featured_image; ?>')" <?php endif; ?>>
+                                                        <?php if (!$featured_image): ?>
+                                                            🎯 Exercise Preview
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <div class="exercise-card-content">
+                                                        <h4 class="exercise-card-title"><?php echo esc_html($exercise->post_title); ?></h4>
+
+                                                        <div class="exercise-card-meta">
+                                                            <?php if ($order > 0): ?>
+                                                                <span class="meta-tag">#<?php echo $order; ?></span>
+                                                            <?php endif; ?>
+
+                                                            <?php if ($duration): ?>
+                                                                <span class="meta-tag">🕐 <?php echo $duration; ?>min</span>
+                                                            <?php endif; ?>
+                                                        </div>
+
+                                                        <?php if ($short_desc): ?>
+                                                            <div class="exercise-card-description">
+                                                                <?php echo wp_trim_words(strip_tags($short_desc), 15); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </div>
-                                            <?php endif; ?>
+                                            <?php endforeach; ?>
                                         </div>
                                     </div>
-                                <?php
-                                endforeach;
-                            else:
-                                ?>
-                                <div class="no-exercises">
-                                    <h3>🚧 No exercises available for Day <?php echo $current_day; ?></h3>
-                                    <p>Please check back later or contact your instructor for more information.</p>
-                                </div>
-                            <?php endif; ?>
-                        </div>
+                            <?php
+                                endif;
+                            endforeach;
+                        else:
+                            ?>
+                            <div class="no-exercises">
+                                <h3>🚧 No exercises available for <?php echo esc_html($day_title); ?></h3>
+                                <p>Please check back later or contact your instructor for more information.</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -417,8 +488,47 @@ if ($_POST && isset($_POST['update_profile'])) {
     </div>
 
     <script>
+        // ===== DODAJ OVO U dashboard.php u <script> tag ili kreiraj dashboard.js =====
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Enhanced subtitle controls
+            // Dark Mode Toggle Functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            const currentTheme = localStorage.getItem('pilates-theme') || 'light';
+
+            // Set initial theme
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            updateToggleText(currentTheme);
+
+            // Toggle theme on button click
+            themeToggle.addEventListener('click', function() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('pilates-theme', newTheme);
+                updateToggleText(newTheme);
+
+                // Add smooth transition effect
+                document.body.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    document.body.style.transition = '';
+                }, 300);
+            });
+
+            function updateToggleText(theme) {
+                const icon = themeToggle.querySelector('.icon');
+                const text = themeToggle.querySelector('.text');
+
+                if (theme === 'dark') {
+                    icon.textContent = '☀️';
+                    text.textContent = 'Light Mode';
+                } else {
+                    icon.textContent = '🌙';
+                    text.textContent = 'Dark Mode';
+                }
+            }
+
+            // Enhanced subtitle controls (existing code)
             const videos = document.querySelectorAll('video');
 
             videos.forEach(function(video) {
@@ -449,9 +559,30 @@ if ($_POST && isset($_POST['update_profile'])) {
                         }
 
                         toggleBtn.textContent = subtitlesEnabled ? 'CC ON' : 'CC OFF';
-                        toggleBtn.style.backgroundColor = subtitlesEnabled ? 'rgba(102, 126, 234, 0.8)' : 'rgba(0,0,0,0.7)';
+                        toggleBtn.style.backgroundColor = subtitlesEnabled ? 'var(--primary-color)' : 'rgba(0,0,0,0.7)';
                     });
                 }
+            });
+
+            // Smooth scroll for navigation
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+
+            // Add loading animation to cards
+            const cards = document.querySelectorAll('.exercise-card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.classList.add('fade-in-up');
             });
         });
     </script>

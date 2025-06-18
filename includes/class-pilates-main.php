@@ -227,13 +227,13 @@ class Pilates_Main
 
         $args = array(
             'labels' => $labels,
-            'public' => false, // postavi na true ako želiš da se prikazuje i na frontendu
+            'public' => false,
             'show_ui' => true,
             'show_in_menu' => true,
             'menu_position' => 31,
             'capability_type' => 'post',
-            'hierarchical' => true, // OMOGUĆAVA PARENT/CHILD
-            'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'), // PAGE ATTRIBUTES = Parent & Order
+            'hierarchical' => true,
+            'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'), // page-attributes = Order field
             'has_archive' => false,
             'rewrite' => false,
             'query_var' => true,
@@ -246,30 +246,60 @@ class Pilates_Main
         register_taxonomy('exercise_day', 'pilates_exercise', array(
             'hierarchical' => true,
             'labels' => array(
-                'name' => 'Days',
-                'singular_name' => 'Day',
-                'add_new_item' => 'Add New Day'
+                'name' => 'Training Days',
+                'singular_name' => 'Training Day',
+                'add_new_item' => 'Add New Training Day',
+                'edit_item' => 'Edit Training Day',
+                'update_item' => 'Update Training Day',
+                'view_item' => 'View Training Day',
+                'separate_items_with_commas' => 'Separate days with commas',
+                'add_or_remove_items' => 'Add or remove days',
+                'choose_from_most_used' => 'Choose from the most used days',
+                'popular_items' => 'Popular Days',
+                'search_items' => 'Search Days',
+                'not_found' => 'Not Found',
+                'no_terms' => 'No days',
+                'items_list' => 'Days list',
+                'items_list_navigation' => 'Days list navigation',
             ),
             'show_ui' => true,
             'show_admin_column' => true,
             'query_var' => true,
             'public' => false,
-            'show_in_menu' => true
+            'show_in_menu' => true,
+            'show_tagcloud' => false,
+            'rewrite' => false,
+            'meta_box_cb' => 'post_categories_meta_box',
         ));
 
         // Register taxonomy: Positions
         register_taxonomy('exercise_position', 'pilates_exercise', array(
             'hierarchical' => true,
             'labels' => array(
-                'name' => 'Positions',
-                'singular_name' => 'Position',
-                'add_new_item' => 'Add New Position'
+                'name' => 'Exercise Positions',
+                'singular_name' => 'Exercise Position',
+                'add_new_item' => 'Add New Position',
+                'edit_item' => 'Edit Position',
+                'update_item' => 'Update Position',
+                'view_item' => 'View Position',
+                'separate_items_with_commas' => 'Separate positions with commas',
+                'add_or_remove_items' => 'Add or remove positions',
+                'choose_from_most_used' => 'Choose from the most used positions',
+                'popular_items' => 'Popular Positions',
+                'search_items' => 'Search Positions',
+                'not_found' => 'Not Found',
+                'no_terms' => 'No positions',
+                'items_list' => 'Positions list',
+                'items_list_navigation' => 'Positions list navigation',
             ),
             'show_ui' => true,
             'show_admin_column' => true,
             'query_var' => true,
             'public' => false,
-            'show_in_menu' => true
+            'show_in_menu' => true,
+            'show_tagcloud' => false,
+            'rewrite' => false,
+            'meta_box_cb' => 'post_categories_meta_box',
         ));
     }
 

@@ -76,7 +76,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
         body {
             font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #04b2be 0%, #2f2f2f 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -86,7 +86,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
         .login-container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 60px rgba(4, 178, 190, 0.2);
             overflow: hidden;
             width: 900px;
             max-width: 90vw;
@@ -107,7 +107,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(45deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+            background: linear-gradient(45deg, rgba(4, 178, 190, 0.4), rgba(26, 216, 204, 0.3));
         }
 
         .login-form {
@@ -116,6 +116,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
             display: flex;
             flex-direction: column;
             justify-content: center;
+            background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
         }
 
         .logo {
@@ -124,9 +125,12 @@ if ($_POST && isset($_POST['pilates_login'])) {
         }
 
         .logo h1 {
-            color: #333;
+            background: linear-gradient(135deg, #04b2be, #1ad8cc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             font-size: 28px;
-            font-weight: 300;
+            font-weight: 600;
             margin-bottom: 10px;
         }
 
@@ -142,7 +146,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
+            color: #2f2f2f;
             font-weight: 500;
             font-size: 14px;
         }
@@ -151,44 +155,54 @@ if ($_POST && isset($_POST['pilates_login'])) {
             width: 100%;
             padding: 15px;
             border: 2px solid #e1e5e9;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
-            transition: border-color 0.3s ease;
+            transition: all 0.3s ease;
             background: #f8f9fa;
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #04b2be;
             background: white;
+            box-shadow: 0 0 0 3px rgba(4, 178, 190, 0.1);
+            transform: translateY(-1px);
         }
 
         .login-button {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #04b2be 0%, #1ad8cc 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: all 0.3s ease;
             margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(4, 178, 190, 0.3);
         }
 
         .login-button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(4, 178, 190, 0.4);
+            background: linear-gradient(135deg, #1ad8cc 0%, #04b2be 100%);
+        }
+
+        .login-button:active {
+            transform: translateY(-1px);
         }
 
         .error {
-            background: #ffe6e6;
+            background: linear-gradient(135deg, #ffe6e6, #ffebee);
             color: #d63384;
-            padding: 12px;
-            border-radius: 6px;
+            padding: 15px;
+            border-radius: 12px;
             margin-bottom: 20px;
             border-left: 4px solid #d63384;
             font-size: 14px;
+            box-shadow: 0 2px 10px rgba(214, 51, 132, 0.1);
         }
 
         .footer {
@@ -198,10 +212,58 @@ if ($_POST && isset($_POST['pilates_login'])) {
             font-size: 12px;
         }
 
+        /* Pulse animation for login button */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 4px 15px rgba(4, 178, 190, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 4px 25px rgba(4, 178, 190, 0.5);
+            }
+
+            100% {
+                box-shadow: 0 4px 15px rgba(4, 178, 190, 0.3);
+            }
+        }
+
+        .login-button:not(:hover) {
+            animation: pulse 2s infinite;
+        }
+
+        /* Loading state */
+        .login-button.loading {
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+
+        .login-button.loading::after {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
         @media (max-width: 768px) {
             .login-container {
                 flex-direction: column;
                 width: 95vw;
+                border-radius: 15px;
             }
 
             .login-image {
@@ -210,6 +272,61 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
             .login-form {
                 padding: 40px 30px;
+            }
+
+            .logo h1 {
+                font-size: 24px;
+            }
+
+            body {
+                background: linear-gradient(135deg, #04b2be 0%, #2f2f2f 100%);
+                padding: 20px 0;
+            }
+        }
+
+        /* Subtle animations */
+        .form-group {
+            animation: slideInUp 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .form-group:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .form-group:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .form-group:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
     </style>
@@ -250,7 +367,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
             </form>
 
             <div class="footer">
-                <p>&copy; 2024 Pilates Academy. All rights reserved.</p>
+                <p>&copy; 2025 Pilates Academy. All rights reserved.</p>
             </div>
         </div>
     </div>

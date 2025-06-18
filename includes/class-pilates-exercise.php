@@ -20,15 +20,7 @@ class Pilates_Exercise
                 'key' => 'group_pilates_exercise_videos',
                 'title' => 'Exercise Video & Details',
                 'fields' => array(
-                    array(
-                        'key' => 'field_exercise_order',
-                        'label' => 'Exercise Order',
-                        'name' => 'exercise_order',
-                        'type' => 'number',
-                        'required' => 1,
-                        'default_value' => 1,
-                        'min' => 1,
-                    ),
+                    // UKLONILI exercise_order - koristimo WordPress menu_order
 
                     array(
                         'key' => 'field_exercise_duration',
@@ -102,7 +94,6 @@ class Pilates_Exercise
                         'tabs' => 'all',
                         'delay' => 0,
                     ),
-
                 ),
                 'location' => array(
                     array(
@@ -113,7 +104,6 @@ class Pilates_Exercise
                         ),
                     ),
                 ),
-
                 'menu_order' => 0,
                 'position' => 'normal',
                 'style' => 'default',
@@ -132,7 +122,7 @@ class Pilates_Exercise
         $new_columns['title'] = $columns['title'];
         $new_columns['exercise_day'] = 'Day';
         $new_columns['exercise_position'] = 'Position';
-        $new_columns['order'] = 'Order';
+        $new_columns['menu_order'] = 'Order';
         $new_columns['duration'] = 'Duration';
         $new_columns['date'] = $columns['date'];
 
@@ -153,9 +143,9 @@ class Pilates_Exercise
                     echo '-';
                 }
                 break;
-            case 'order':
-                $order = get_field('exercise_order', $post_id);
-                echo $order ? $order : '-';
+            case 'menu_order': // Promenjeno sa 'order' na 'menu_order'
+                $post = get_post($post_id);
+                echo $post->menu_order ? $post->menu_order : '0';
                 break;
             case 'duration':
                 $duration = get_field('exercise_duration', $post_id);
@@ -210,14 +200,13 @@ class Pilates_Exercise
             return;
         }
 
-        // Ako korisnik nije ručno kliknuo da sortira nešto
+        // Default sort po menu_order umesto ACF polja
         if (!$query->get('orderby')) {
-            $query->set('meta_key', 'exercise_order');
-            $query->set('orderby', 'meta_value_num');
+            $query->set('orderby', 'menu_order');
             $query->set('order', 'ASC');
         }
 
-        // Dodaj filter za exercise_day (kao što si već imao ranije)
+        // Filter za exercise_day
         $taxonomy = 'exercise_day';
         if (isset($_GET[$taxonomy]) && is_numeric($_GET[$taxonomy]) && $_GET[$taxonomy] != 0) {
             $term = get_term_by('id', $_GET[$taxonomy], $taxonomy);
@@ -229,7 +218,7 @@ class Pilates_Exercise
 
     public function sortable_columns($columns)
     {
-        $columns['order'] = 'order';
+        $columns['menu_order'] = 'menu_order';
         $columns['duration'] = 'duration';
         $columns['exercise_day'] = 'exercise_day';
         $columns['exercise_position'] = 'exercise_position';
