@@ -41,16 +41,36 @@ if ($_POST && isset($_POST['update_profile'])) {
     // Handle avatar upload
     if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === 0) {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/image.php'); // Add this line
         $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
+
         if (!isset($uploaded['error'])) {
             $attachment_id = wp_insert_attachment(array(
-                'post_title' => 'Profile Picture',
+                'post_title' => 'Profile Picture - ' . $current_user->display_name, // Add user name
                 'post_content' => '',
                 'post_status' => 'inherit',
                 'post_mime_type' => $uploaded['type']
             ), $uploaded['file']);
 
+            // Generate attachment metadata and update it
+            $attach_data = wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
+            wp_update_attachment_metadata($attachment_id, $attach_data);
+
+            // Delete old avatar if exists
+            $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+            if ($old_avatar_id) {
+                wp_delete_attachment($old_avatar_id, true);
+            }
+
+            // Update user meta
             update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
+
+            // Update students table
+            $wpdb->update(
+                $table_name,
+                array('avatar_id' => $attachment_id),
+                array('user_id' => $current_user->ID)
+            );
         }
     }
 
@@ -527,44 +547,25 @@ if ($_POST && isset($_POST['update_profile'])) {
                         reader.readAsDataURL(file);
                     }
                 });
+            }
 
-                // AJAX upload (optional - trenutno se koristi form submit)
-                function uploadAvatarAjax(file) {
-                    const formData = new FormData();
-                    formData.append('avatar', file);
-                    formData.append('action', 'upload_avatar');
-                    formData.append('nonce', pilates_ajax.nonce);
+            // Make sure the sidebar avatar updates too
+            const sidebarAvatar = document.querySelector('.user-avatar');
+            const profileForm = document.querySelector('.profile-form');
 
-                    fetch(pilates_ajax.ajax_url, {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                currentAvatar.src = data.data.avatar_url;
-                                showMessage(data.data.message, 'success');
-                            } else {
-                                showMessage(data.data, 'error');
+            if (profileForm) {
+                profileForm.addEventListener('submit', function() {
+                    // Store current preview URL to update sidebar after form submission
+                    if (currentAvatar && sidebarAvatar) {
+                        localStorage.setItem('temp_avatar_url', currentAvatar.src);
+                        setTimeout(function() {
+                            if (localStorage.getItem('temp_avatar_url')) {
+                                sidebarAvatar.src = localStorage.getItem('temp_avatar_url');
+                                localStorage.removeItem('temp_avatar_url');
                             }
-                        })
-                        .catch(error => {
-                            showMessage('Upload failed. Please try again.', 'error');
-                        });
-                }
-
-                function showMessage(message, type) {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = `${type}-message`;
-                    messageDiv.textContent = message;
-
-                    const form = document.querySelector('.profile-form');
-                    form.insertBefore(messageDiv, form.firstChild);
-
-                    setTimeout(() => {
-                        messageDiv.remove();
-                    }, 3000);
-                }
+                        }, 500);
+                    }
+                });
             }
         });
         document.addEventListener('DOMContentLoaded', function() {

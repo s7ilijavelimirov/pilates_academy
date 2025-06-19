@@ -128,6 +128,10 @@ class Pilates_Main
             'avatar_url' => wp_get_attachment_url($attachment_id),
             'message' => 'Profile picture updated successfully!'
         ));
+        wp_localize_script('pilates-admin', 'pilates_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('pilates_nonce')
+        ));
     }
 
     public function allow_svg_upload($mimes)
