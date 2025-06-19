@@ -2,9 +2,10 @@
 $current_user = wp_get_current_user();
 $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'dashboard';
 
-// Get user avatar
-$avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
-$avatar_url = $avatar_id ? wp_get_attachment_url($avatar_id) : get_avatar_url($current_user->ID, array('size' => 150));
+// Use helper function for avatar
+$avatar_url = Pilates_Main::get_user_avatar_url($current_user->ID, 150);
+
+error_log("Sidebar - User ID: {$current_user->ID}, Final Avatar URL: {$avatar_url}");
 
 // Get student info
 global $wpdb;
@@ -21,11 +22,13 @@ $student = $wpdb->get_row($wpdb->prepare(
     </div>
 
     <div class="user-profile">
-        <img src="<?php echo esc_url($avatar_url); ?>" alt="Profile" class="user-avatar">
+        <img src="<?php echo esc_url($avatar_url); ?>" alt="Profile" class="user-avatar"
+            onerror="this.src='<?php echo get_avatar_url($current_user->ID); ?>'">
         <div class="user-name"><?php echo esc_html($current_user->first_name . ' ' . $current_user->last_name); ?></div>
         <div class="user-role">Student Member</div>
     </div>
 
+    <!-- ostatak koda isti... -->
     <nav class="sidebar-nav">
         <a href="<?php echo home_url('/pilates-dashboard/'); ?>" class="nav-item <?php echo ($current_page === 'dashboard') ? 'active' : ''; ?>">
             <span class="nav-icon">🏠</span> Dashboard
@@ -58,7 +61,6 @@ $student = $wpdb->get_row($wpdb->prepare(
         sidebar.classList.toggle('mobile-open');
     }
 
-    // Close sidebar when clicking outside on mobile
     document.addEventListener('click', function(e) {
         const sidebar = document.getElementById('sidebar');
         const toggle = document.querySelector('.mobile-toggle');

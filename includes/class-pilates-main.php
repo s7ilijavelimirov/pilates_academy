@@ -19,127 +19,144 @@ class Pilates_Main
         add_action('init', array($this, 'handle_subtitle_request'));
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
-        add_filter('upload_mimes', array($this, 'allow_svg_upload'));
-        add_action('wp_ajax_upload_avatar', array($this, 'handle_avatar_upload'));
+        add_action('wp_ajax_pilates_upload_avatar', array($this, 'handle_avatar_upload'));
         add_filter('wp_handle_upload_prefilter', array($this, 'validate_avatar_upload'));
     }
-
-    public function validate_avatar_upload($file)
+    /**
+     * Get user avatar URL with proper fallback
+     */
+    public static function get_user_avatar_url($user_id, $size = 150)
     {
-        // Check if this is avatar upload
-        if (!isset($_POST['pilates_avatar_upload'])) {
-            return $file;
+        $avatar_id = get_user_meta($user_id, 'pilates_avatar', true);
+
+        if ($avatar_id) {
+            $avatar_url = wp_get_attachment_url($avatar_id);
+
+            if ($avatar_url) {
+                // Check if file exists
+                $file_path = get_attached_file($avatar_id);
+                if ($file_path && file_exists($file_path)) {
+                    // JAČI cache busting - kombinuj filemtime i avatar_id
+                    $timestamp = filemtime($file_path);
+                    return $avatar_url . '?v=' . $timestamp . '&id=' . $avatar_id;
+                }
+            }
+
+            // If we get here, avatar is broken - clean it up
+            error_log("Cleaning up broken avatar {$avatar_id} for user {$user_id}");
+            delete_user_meta($user_id, 'pilates_avatar');
+
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'pilates_students';
+            $wpdb->update(
+                $table_name,
+                array('avatar_id' => null),
+                array('user_id' => $user_id)
+            );
         }
 
-        // Check file type
-        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
-        if (!in_array($file['type'], $allowed_types)) {
-            $file['error'] = 'Only image files (JPEG, PNG, GIF, WebP) are allowed.';
-            return $file;
-        }
-
-        // Check file size (1MB = 1048576 bytes)
-        if ($file['size'] > 1048576) {
-            $file['error'] = 'File size must be less than 1MB.';
-            return $file;
-        }
-
-        return $file;
+        // Return default avatar
+        return get_avatar_url($user_id, array('size' => $size));
     }
-
     public function handle_avatar_upload()
     {
-        check_ajax_referer('pilates_nonce', 'nonce');
+        error_log('=== AVATAR UPLOAD START ===');
+
+        if (!wp_verify_nonce($_POST['nonce'], 'pilates_avatar_nonce')) {
+            error_log('Nonce verification failed');
+            wp_send_json_error('Nonce verification failed');
+        }
 
         if (!is_user_logged_in()) {
-            wp_send_json_error('You must be logged in to upload avatar.');
-            return;
+            wp_send_json_error('Unauthorized');
         }
 
         if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== 0) {
-            wp_send_json_error('No file uploaded or upload error occurred.');
-            return;
+            wp_send_json_error('No file uploaded');
+        }
+
+        $current_user = wp_get_current_user();
+        error_log("Uploading avatar for user: {$current_user->ID}");
+
+        // Obriši stari avatar
+        $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+        if ($old_avatar_id) {
+            error_log("Deleting old avatar: {$old_avatar_id}");
+            wp_delete_attachment($old_avatar_id, true);
         }
 
         require_once(ABSPATH . 'wp-admin/includes/file.php');
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
 
-        // Validate file
-        $file = $_FILES['avatar'];
-
-        // Check file type
-        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
-        if (!in_array($file['type'], $allowed_types)) {
-            wp_send_json_error('Only image files (JPEG, PNG, GIF, WebP) are allowed.');
-            return;
-        }
-
-        // Check file size (1MB)
-        if ($file['size'] > 1048576) {
-            wp_send_json_error('File size must be less than 1MB.');
-            return;
-        }
-
-        // Upload file
-        $uploaded = wp_handle_upload($file, array('test_form' => false));
+        $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
 
         if (isset($uploaded['error'])) {
+            error_log("Upload error: " . $uploaded['error']);
             wp_send_json_error($uploaded['error']);
-            return;
         }
 
-        // Create attachment
+        // Kreiraj attachment
         $attachment_id = wp_insert_attachment(array(
-            'post_title' => 'Profile Picture - ' . wp_get_current_user()->display_name,
+            'post_title' => 'Avatar - ' . $current_user->display_name,
             'post_content' => '',
             'post_status' => 'inherit',
             'post_mime_type' => $uploaded['type']
         ), $uploaded['file']);
 
         if (is_wp_error($attachment_id)) {
-            wp_send_json_error('Failed to save image.');
-            return;
+            error_log("Attachment creation failed");
+            wp_send_json_error('Failed to create attachment');
         }
 
-        // Generate thumbnails
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-        wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
+        error_log("Created attachment: {$attachment_id}");
 
-        $current_user = wp_get_current_user();
+        // Generiši metadata
+        $attach_data = wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
+        wp_update_attachment_metadata($attachment_id, $attach_data);
 
-        // Delete old avatar if exists
-        $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
-        if ($old_avatar_id) {
-            wp_delete_attachment($old_avatar_id, true);
-        }
+        // Sačuvaj u user meta
+        $meta_result = update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
+        error_log("User meta update result: " . ($meta_result ? 'SUCCESS' : 'FAILED'));
 
-        // Save new avatar to user meta
-        update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
-
-        // Update students table
+        // Sačuvaj u students tabeli
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_students';
-        $wpdb->update(
+        $db_result = $wpdb->update(
             $table_name,
             array('avatar_id' => $attachment_id),
             array('user_id' => $current_user->ID)
         );
+        error_log("Database update result: " . ($db_result !== false ? 'SUCCESS' : 'FAILED'));
+
+        // Verify save
+        $saved_avatar = get_user_meta($current_user->ID, 'pilates_avatar', true);
+        error_log("Verified saved avatar ID: {$saved_avatar}");
+
+        error_log('=== AVATAR UPLOAD END ===');
 
         wp_send_json_success(array(
             'avatar_url' => wp_get_attachment_url($attachment_id),
-            'message' => 'Profile picture updated successfully!'
-        ));
-        wp_localize_script('pilates-admin', 'pilates_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('pilates_nonce')
+            'avatar_id' => $attachment_id,
+            'saved_id' => $saved_avatar
         ));
     }
 
-    public function allow_svg_upload($mimes)
+    public function validate_avatar_upload($file)
     {
-        $mimes['svg'] = 'image/svg+xml';
-        return $mimes;
-    }
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
 
+        if (!in_array($file['type'], $allowed_types)) {
+            $file['error'] = 'Only image files allowed';
+            return $file;
+        }
+
+        if ($file['size'] > 1048576) { // 1MB
+            $file['error'] = 'File too large (max 1MB)';
+            return $file;
+        }
+
+        return $file;
+    }
     public function handle_subtitle_request()
     {
         if (isset($_GET['pilates_subtitle']) && isset($_GET['file_id'])) {

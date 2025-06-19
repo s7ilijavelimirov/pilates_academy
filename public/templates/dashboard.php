@@ -1,4 +1,12 @@
 <?php
+// DODAJ OVO NA VRH ZA DEBUG - OBRIŠEŠ KASNIJE
+if (isset($_GET['debug_avatar'])) {
+    $debug_avatar_id = get_user_meta(get_current_user_id(), 'pilates_avatar', true);
+    $debug_avatar_url = $debug_avatar_id ? wp_get_attachment_url($debug_avatar_id) : 'No avatar';
+    echo "<div style='background:yellow;padding:10px;'>Debug Avatar ID: {$debug_avatar_id} | URL: {$debug_avatar_url}</div>";
+}
+?>
+<?php
 $current_user = wp_get_current_user();
 $current_day = isset($_GET['day']) ? intval($_GET['day']) : 1;
 $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
@@ -116,19 +124,25 @@ if ($_POST && isset($_POST['update_profile'])) {
                     <?php endif; ?>
 
                     <div class="profile-section">
-                        <form method="post" enctype="multipart/form-data" class="profile-form">
-                            <div class="avatar-upload">
-                                <?php
-                                $avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
-                                $avatar_url = $avatar_id ? wp_get_attachment_url($avatar_id) : get_avatar_url($current_user->ID, array('size' => 150));
-                                ?>
-                                <img src="<?php echo esc_url($avatar_url); ?>" alt="Current Avatar" class="current-avatar">
-                                <div class="file-input-wrapper">
-                                    <input type="file" name="avatar" accept="image/*" class="file-input">
-                                    <div class="file-input-btn">📷 Change Photo</div>
-                                </div>
-                            </div>
+                        <div class="avatar-section">
+                            <?php
+                            // Use helper function for avatar
+                            $avatar_url = Pilates_Main::get_user_avatar_url($current_user->ID, 150);
+                            ?>
+                            <img src="<?php echo esc_url($avatar_url); ?>" alt="Avatar" class="current-avatar" id="current-avatar">
 
+                            <form id="avatar-upload-form" enctype="multipart/form-data">
+                                <?php wp_nonce_field('pilates_avatar_nonce', 'avatar_nonce'); ?>
+                                <input type="file" name="avatar" id="avatar-input" accept="image/*" style="display:none;">
+                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('avatar-input').click()">
+                                    📷 Change Photo
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="upload-btn" style="display:none;">
+                                    💾 Upload
+                                </button>
+                            </form>
+                        </div>
+                        <form method="post" enctype="multipart/form-data" class="profile-form">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="first_name">First Name *</label>
@@ -506,164 +520,14 @@ if ($_POST && isset($_POST['update_profile'])) {
             <?php endif; ?>
         </div>
     </div>
-
     <script>
-        // ===== DODAJ OVO U dashboard.php u <script> tag ili kreiraj dashboard.js =====
-        // Dodaj ovo u dashboard.php u postojeći <script> tag
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Avatar upload functionality
-            const avatarInput = document.querySelector('input[name="avatar"]');
-            const currentAvatar = document.querySelector('.current-avatar');
-            const fileInputBtn = document.querySelector('.file-input-btn');
-
-            if (avatarInput && currentAvatar) {
-                // Preview new image before upload
-                avatarInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        // Validate file size (1MB)
-                        if (file.size > 1048576) {
-                            alert('File size must be less than 1MB.');
-                            this.value = '';
-                            return;
-                        }
-
-                        // Validate file type
-                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-                        if (!allowedTypes.includes(file.type)) {
-                            alert('Only image files (JPEG, PNG, GIF, WebP) are allowed.');
-                            this.value = '';
-                            return;
-                        }
-
-                        // Show preview
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            currentAvatar.src = e.target.result;
-                            fileInputBtn.textContent = '✓ Photo Selected';
-                            fileInputBtn.style.background = '#00a32a';
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-
-            // Make sure the sidebar avatar updates too
-            const sidebarAvatar = document.querySelector('.user-avatar');
-            const profileForm = document.querySelector('.profile-form');
-
-            if (profileForm) {
-                profileForm.addEventListener('submit', function() {
-                    // Store current preview URL to update sidebar after form submission
-                    if (currentAvatar && sidebarAvatar) {
-                        localStorage.setItem('temp_avatar_url', currentAvatar.src);
-                        setTimeout(function() {
-                            if (localStorage.getItem('temp_avatar_url')) {
-                                sidebarAvatar.src = localStorage.getItem('temp_avatar_url');
-                                localStorage.removeItem('temp_avatar_url');
-                            }
-                        }, 500);
-                    }
-                });
-            }
-        });
-        document.addEventListener('DOMContentLoaded', function() {
-            // Dark Mode Toggle Functionality
-            const themeToggle = document.getElementById('theme-toggle');
-            const currentTheme = localStorage.getItem('pilates-theme') || 'light';
-
-            // Set initial theme
-            document.documentElement.setAttribute('data-theme', currentTheme);
-            updateToggleText(currentTheme);
-
-            // Toggle theme on button click
-            themeToggle.addEventListener('click', function() {
-                const currentTheme = document.documentElement.getAttribute('data-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-                document.documentElement.setAttribute('data-theme', newTheme);
-                localStorage.setItem('pilates-theme', newTheme);
-                updateToggleText(newTheme);
-
-                // Add smooth transition effect
-                document.body.style.transition = 'all 0.3s ease';
-                setTimeout(() => {
-                    document.body.style.transition = '';
-                }, 300);
-            });
-
-            function updateToggleText(theme) {
-                const icon = themeToggle.querySelector('.icon');
-                const text = themeToggle.querySelector('.text');
-
-                if (theme === 'dark') {
-                    icon.textContent = '☀️';
-                    text.textContent = 'Light Mode';
-                } else {
-                    icon.textContent = '🌙';
-                    text.textContent = 'Dark Mode';
-                }
-            }
-
-            // Enhanced subtitle controls (existing code)
-            const videos = document.querySelectorAll('video');
-
-            videos.forEach(function(video) {
-                const textTracks = video.textTracks;
-
-                if (textTracks.length > 0) {
-                    // Create custom subtitle toggle
-                    const toggleBtn = document.createElement('button');
-                    toggleBtn.className = 'subtitle-toggle';
-                    toggleBtn.textContent = 'CC ON';
-
-                    const container = video.parentNode;
-                    container.style.position = 'relative';
-                    container.appendChild(toggleBtn);
-
-                    let subtitlesEnabled = true;
-
-                    // Set default track
-                    for (let i = 0; i < textTracks.length; i++) {
-                        textTracks[i].mode = i === 0 ? 'showing' : 'disabled';
-                    }
-
-                    toggleBtn.addEventListener('click', function() {
-                        subtitlesEnabled = !subtitlesEnabled;
-
-                        for (let i = 0; i < textTracks.length; i++) {
-                            textTracks[i].mode = subtitlesEnabled ? (i === 0 ? 'showing' : 'disabled') : 'disabled';
-                        }
-
-                        toggleBtn.textContent = subtitlesEnabled ? 'CC ON' : 'CC OFF';
-                        toggleBtn.style.backgroundColor = subtitlesEnabled ? 'var(--primary-color)' : 'rgba(0,0,0,0.7)';
-                    });
-                }
-            });
-
-            // Smooth scroll for navigation
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const target = document.querySelector(this.getAttribute('href'));
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
-                });
-            });
-
-            // Add loading animation to cards
-            const cards = document.querySelectorAll('.exercise-card');
-            cards.forEach((card, index) => {
-                card.style.animationDelay = `${index * 0.1}s`;
-                card.classList.add('fade-in-up');
-            });
-        });
+        // Definiši pilates_ajax globalno
+        window.pilates_ajax = {
+            ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            nonce: '<?php echo wp_create_nonce('pilates_nonce'); ?>'
+        };
     </script>
+    <script src="<?php echo PILATES_PLUGIN_URL . 'admin/js/dashboard.js?v=' . time(); ?>"></script>
 </body>
 
 </html>
