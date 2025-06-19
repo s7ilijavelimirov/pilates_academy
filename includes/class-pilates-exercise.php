@@ -23,77 +23,69 @@ class Pilates_Exercise
                     // UKLONILI exercise_order - koristimo WordPress menu_order
 
                     array(
-                        'key' => 'field_exercise_duration',
-                        'label' => 'Duration (minutes)',
-                        'name' => 'exercise_duration',
-                        'type' => 'number',
-                        'min' => 1,
-                    ),
-                    array(
-                        'key' => 'field_exercise_short_description',
-                        'label' => 'Short Description',
-                        'name' => 'exercise_short_description',
-                        'type' => 'wysiwyg',
-                        'instructions' => 'Brief description shown above video',
-                        'toolbar' => 'basic',
-                        'media_upload' => 0,
-                        'tabs' => 'all',
-                        'delay' => 0,
-                    ),
-                    array(
-                        'key' => 'field_exercise_video',
-                        'label' => 'Exercise Video (MP4)',
-                        'name' => 'exercise_video',
-                        'type' => 'file',
-                        'instructions' => 'Upload MP4 video file',
-                        'return_format' => 'array',
-                        'library' => 'all',
-                        'mime_types' => 'mp4',
-                    ),
-                    array(
-                        'key' => 'field_subtitles',
-                        'label' => 'Subtitles (CC)',
-                        'name' => 'subtitles',
+                        'key' => 'field_exercise_video_sections',
+                        'label' => 'Exercise Video Sections',
+                        'name' => 'exercise_video_sections',
                         'type' => 'repeater',
-                        'layout' => 'table',
-                        'button_label' => 'Add Subtitle Track',
-                        'min' => 0,
-                        'max' => 3,
+                        'layout' => 'block',
+                        'button_label' => 'Add Video Section',
                         'sub_fields' => array(
+
                             array(
-                                'key' => 'field_subtitle_language',
-                                'label' => 'Language',
-                                'name' => 'language',
-                                'type' => 'select',
-                                'choices' => array(
-                                    'en' => 'English',
-                                    'de' => 'German',
-                                    'uk' => 'Ukrainian'
-                                ),
-                                'required' => 1,
-                            ),
-                            array(
-                                'key' => 'field_subtitle_file',
-                                'label' => 'Subtitle File (.vtt or .srt)',
-                                'name' => 'subtitle_file',
+                                'key' => 'field_video_file',
+                                'label' => 'Exercise Video (MP4)',
+                                'name' => 'video',
                                 'type' => 'file',
                                 'return_format' => 'array',
-                                'mime_types' => 'vtt,srt',
-                                'required' => 1,
+                                'library' => 'all',
+                                'mime_types' => 'mp4',
+                                // 'required' => 1, // removed
+                            ),
+
+                            array(
+                                'key' => 'field_video_subtitles',
+                                'label' => 'Subtitles (CC)',
+                                'name' => 'subtitles',
+                                'type' => 'repeater',
+                                'layout' => 'table',
+                                'button_label' => 'Add Subtitle Track',
+                                'min' => 0,
+                                'max' => 3,
+                                'sub_fields' => array(
+                                    array(
+                                        'key' => 'field_subtitle_lang',
+                                        'label' => 'Language',
+                                        'name' => 'language',
+                                        'type' => 'select',
+                                        'choices' => array(
+                                            'en' => 'English',
+                                            'de' => 'German',
+                                            'uk' => 'Ukrainian'
+                                        ),
+                                    ),
+                                    array(
+                                        'key' => 'field_subtitle_file',
+                                        'label' => 'Subtitle File (.vtt or .srt)',
+                                        'name' => 'subtitle_file',
+                                        'type' => 'file',
+                                        'return_format' => 'array',
+                                        'mime_types' => 'vtt,srt',
+                                    ),
+                                ),
+                            ),
+
+                            array(
+                                'key' => 'field_video_text',
+                                'label' => 'Text Instructions / Description',
+                                'name' => 'text',
+                                'type' => 'wysiwyg',
+                                'toolbar' => 'full',
+                                'media_upload' => 1,
                             ),
                         ),
                     ),
-                    array(
-                        'key' => 'field_exercise_detailed_description',
-                        'label' => 'Detailed Instructions',
-                        'name' => 'exercise_detailed_description',
-                        'type' => 'wysiwyg',
-                        'instructions' => 'Detailed instructions shown below video',
-                        'toolbar' => 'full',
-                        'media_upload' => 1,
-                        'tabs' => 'all',
-                        'delay' => 0,
-                    ),
+
+
                 ),
                 'location' => array(
                     array(

@@ -665,6 +665,26 @@ html, body {
     transition: opacity 0.3s ease;
 }
 
+.user-avatar,
+.current-avatar {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+/* Disable lazy load styles for avatars */
+.user-avatar.lazyload,
+.current-avatar.lazyload {
+    opacity: 1 !important;
+}
+
+/* Override any blur or loading effects */
+.user-avatar:not([src]),
+.current-avatar:not([src]) {
+    opacity: 1 !important;
+    filter: none !important;
+}
+
 .current-avatar {
     width: 120px;
     height: 120px;
@@ -795,7 +815,7 @@ html, body {
 
 .video-container video {
     width: 100%;
-    height: auto;
+    height: 400px;
     display: block;
 }
 
@@ -824,7 +844,7 @@ html, body {
     text-decoration: none;
     font-weight: 500;
     font-family: var(--pilates-font);
-    margin-bottom: 20px;
+    /* margin-bottom: 20px; */
     padding: 8px 16px;
     border-radius: var(--pilates-radius);
     transition: var(--pilates-transition);
@@ -839,7 +859,7 @@ html, body {
 
 /* Exercise Detail */
 .exercise-detail {
-    max-width: 800px;
+    max-width: 100%;
 }
 
 .exercise-header {
@@ -848,6 +868,8 @@ html, body {
 
 .exercise-meta {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 12px;
     margin-bottom: 20px;
     flex-wrap: wrap;
@@ -894,6 +916,12 @@ html, body {
     border: 1px solid var(--pilates-border);
     line-height: 1.7;
     font-family: var(--pilates-font);
+}
+
+.detailed-instructions-content li, a {
+    color: var(--pilates-text);
+      font-family: var(--pilates-font);
+
 }
 
 /* No Exercises */

@@ -90,6 +90,24 @@ function pilates_deactivate()
 
     flush_rewrite_rules();
 }
+add_action('init', function () {
+    // Proveravamo da li je Polylang aktivan
+    if (function_exists('pll_get_post_types')) {
+        add_filter('pll_get_post_types', function ($post_types) {
+            $post_types['pilates_exercise'] = true;
+            return $post_types;
+        });
+
+        add_filter('pll_get_taxonomies', function ($taxonomies) {
+            $taxonomies['exercise_day'] = true;
+            $taxonomies['exercise_position'] = true;
+            $taxonomies['exercise_equipment'] = true;
+            return $taxonomies;
+        });
+    }
+});
+
+
 // Initialize plugin
 add_action('plugins_loaded', 'pilates_init');
 function pilates_init()

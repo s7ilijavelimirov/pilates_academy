@@ -2,11 +2,6 @@
 $current_user = wp_get_current_user();
 $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'dashboard';
 
-// Use helper function for avatar
-$avatar_url = Pilates_Main::get_user_avatar_url($current_user->ID, 150);
-
-error_log("Sidebar - User ID: {$current_user->ID}, Final Avatar URL: {$avatar_url}");
-
 // Get student info
 global $wpdb;
 $table_name = $wpdb->prefix . 'pilates_students';
@@ -14,6 +9,28 @@ $student = $wpdb->get_row($wpdb->prepare(
     "SELECT * FROM $table_name WHERE user_id = %d",
     $current_user->ID
 ));
+
+// Use the SAME method as in profile page
+wp_cache_delete($current_user->ID, 'user_meta');
+wp_cache_delete($current_user->ID, 'users');
+
+$avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+$avatar_url = '';
+
+error_log("Sidebar Avatar Check - User ID: {$current_user->ID}, Avatar ID: {$avatar_id}");
+
+if ($avatar_id) {
+    $avatar_url = wp_get_attachment_url($avatar_id);
+    if ($avatar_url) {
+        $avatar_url;
+        error_log("Avatar URL generated: {$avatar_url}");
+    }
+}
+
+if (!$avatar_url) {
+    $avatar_url = get_avatar_url($current_user->ID, array('size' => 150));
+    error_log("Using default avatar: {$avatar_url}");
+}
 ?>
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -22,13 +39,13 @@ $student = $wpdb->get_row($wpdb->prepare(
     </div>
 
     <div class="user-profile">
-        <img src="<?php echo esc_url($avatar_url); ?>" alt="Profile" class="user-avatar"
-            onerror="this.src='<?php echo get_avatar_url($current_user->ID); ?>'">
+        <img src="<?php echo esc_url($avatar_url); ?>"
+            alt="Profile"
+            class="user-avatar skip-lazy no-lazyload">
         <div class="user-name"><?php echo esc_html($current_user->first_name . ' ' . $current_user->last_name); ?></div>
         <div class="user-role">Student Member</div>
     </div>
 
-    <!-- ostatak koda isti... -->
     <nav class="sidebar-nav">
         <a href="<?php echo home_url('/pilates-dashboard/'); ?>" class="nav-item <?php echo ($current_page === 'dashboard') ? 'active' : ''; ?>">
             <span class="nav-icon">🏠</span> Dashboard

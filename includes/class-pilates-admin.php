@@ -764,27 +764,87 @@ class Pilates_Admin
         $subject = 'Welcome to Pilates Academy - Your Login Credentials';
         $login_url = home_url('/pilates-login/');
 
-        $message = "Dear {$first_name},
+        $message = "
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f8f8f8;
+                margin: 0;
+                padding: 0;
+            }
+            .email-container {
+                background-color: #ffffff;
+                margin: 20px auto;
+                padding: 30px;
+                max-width: 600px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+            }
+            h1 {
+                color: #04b2be;
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+            p {
+                color: #2f2f2f;
+                font-size: 16px;
+                line-height: 1.6;
+            }
+            .credentials {
+                background-color: #f0fafa;
+                padding: 15px;
+                border-left: 5px solid #1ad8cc;
+                margin: 20px 0;
+                font-family: monospace;
+                color: #2f2f2f;
+            }
+            .button {
+                display: inline-block;
+                padding: 12px 20px;
+                background-color: #04b2be;
+                color: #ffffff !important;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: bold;
+                margin-top: 20px;
+            }
+            .footer {
+                font-size: 14px;
+                color: #888888;
+                margin-top: 30px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class='email-container'>
+            <h1>Welcome to Pilates Academy, {$first_name}!</h1>
+            <p>We're excited to have you on board. Your account has been successfully created.</p>
+            <p>Here are your login details:</p>
 
-Welcome to Pilates Academy! Your account has been created successfully.
+            <div class='credentials'>
+                Email (Username): {$email}<br>
+                Password: {$password}<br>
+                Login URL: <a href='{$login_url}'>{$login_url}</a>
+            </div>
 
-Here are your login details:
-----------------------------
-Email (Username): {$email}
-Password: {$password}
-Login URL: {$login_url}
+            <p>Click the button below to log in to your personal dashboard, where you can view your exercises and track your progress.</p>
+            <a href='{$login_url}' class='button'>Log In to Your Account</a>
 
-Please keep this information safe. You can use these credentials to access your personal dashboard where you can view exercises and track your progress.
+            <p>If you have any questions or need help, feel free to reach out. We're here for you!</p>
 
-If you have any questions or need assistance, please don't hesitate to contact us.
+            <p class='footer'>Best regards,<br>Pilates Academy Team</p>
+        </div>
+    </body>
+    </html>
+    ";
 
-Best regards,
-Pilates Academy Team";
-
-        $headers = array('Content-Type: text/plain; charset=UTF-8');
+        $headers = array('Content-Type: text/html; charset=UTF-8');
 
         return wp_mail($email, $subject, $message, $headers);
     }
+
 
     public function sessions_page()
     {

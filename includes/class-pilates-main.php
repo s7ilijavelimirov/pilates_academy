@@ -19,144 +19,185 @@ class Pilates_Main
         add_action('init', array($this, 'handle_subtitle_request'));
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
-        add_action('wp_ajax_pilates_upload_avatar', array($this, 'handle_avatar_upload'));
-        add_filter('wp_handle_upload_prefilter', array($this, 'validate_avatar_upload'));
-    }
-    /**
-     * Get user avatar URL with proper fallback
-     */
-    public static function get_user_avatar_url($user_id, $size = 150)
-    {
-        $avatar_id = get_user_meta($user_id, 'pilates_avatar', true);
-
-        if ($avatar_id) {
-            $avatar_url = wp_get_attachment_url($avatar_id);
-
-            if ($avatar_url) {
-                // Check if file exists
-                $file_path = get_attached_file($avatar_id);
-                if ($file_path && file_exists($file_path)) {
-                    // JAČI cache busting - kombinuj filemtime i avatar_id
-                    $timestamp = filemtime($file_path);
-                    return $avatar_url . '?v=' . $timestamp . '&id=' . $avatar_id;
-                }
-            }
-
-            // If we get here, avatar is broken - clean it up
-            error_log("Cleaning up broken avatar {$avatar_id} for user {$user_id}");
-            delete_user_meta($user_id, 'pilates_avatar');
-
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'pilates_students';
-            $wpdb->update(
-                $table_name,
-                array('avatar_id' => null),
-                array('user_id' => $user_id)
-            );
-        }
-
-        // Return default avatar
-        return get_avatar_url($user_id, array('size' => $size));
-    }
-    public function handle_avatar_upload()
-    {
-        error_log('=== AVATAR UPLOAD START ===');
-
-        if (!wp_verify_nonce($_POST['nonce'], 'pilates_avatar_nonce')) {
-            error_log('Nonce verification failed');
-            wp_send_json_error('Nonce verification failed');
-        }
-
-        if (!is_user_logged_in()) {
-            wp_send_json_error('Unauthorized');
-        }
-
-        if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== 0) {
-            wp_send_json_error('No file uploaded');
-        }
-
-        $current_user = wp_get_current_user();
-        error_log("Uploading avatar for user: {$current_user->ID}");
-
-        // Obriši stari avatar
-        $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
-        if ($old_avatar_id) {
-            error_log("Deleting old avatar: {$old_avatar_id}");
-            wp_delete_attachment($old_avatar_id, true);
-        }
-
-        require_once(ABSPATH . 'wp-admin/includes/file.php');
-        require_once(ABSPATH . 'wp-admin/includes/image.php');
-
-        $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
-
-        if (isset($uploaded['error'])) {
-            error_log("Upload error: " . $uploaded['error']);
-            wp_send_json_error($uploaded['error']);
-        }
-
-        // Kreiraj attachment
-        $attachment_id = wp_insert_attachment(array(
-            'post_title' => 'Avatar - ' . $current_user->display_name,
-            'post_content' => '',
-            'post_status' => 'inherit',
-            'post_mime_type' => $uploaded['type']
-        ), $uploaded['file']);
-
-        if (is_wp_error($attachment_id)) {
-            error_log("Attachment creation failed");
-            wp_send_json_error('Failed to create attachment');
-        }
-
-        error_log("Created attachment: {$attachment_id}");
-
-        // Generiši metadata
-        $attach_data = wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
-        wp_update_attachment_metadata($attachment_id, $attach_data);
-
-        // Sačuvaj u user meta
-        $meta_result = update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
-        error_log("User meta update result: " . ($meta_result ? 'SUCCESS' : 'FAILED'));
-
-        // Sačuvaj u students tabeli
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'pilates_students';
-        $db_result = $wpdb->update(
-            $table_name,
-            array('avatar_id' => $attachment_id),
-            array('user_id' => $current_user->ID)
-        );
-        error_log("Database update result: " . ($db_result !== false ? 'SUCCESS' : 'FAILED'));
-
-        // Verify save
-        $saved_avatar = get_user_meta($current_user->ID, 'pilates_avatar', true);
-        error_log("Verified saved avatar ID: {$saved_avatar}");
-
-        error_log('=== AVATAR UPLOAD END ===');
-
-        wp_send_json_success(array(
-            'avatar_url' => wp_get_attachment_url($attachment_id),
-            'avatar_id' => $attachment_id,
-            'saved_id' => $saved_avatar
-        ));
+        add_action('init', array($this, 'register_post_types_and_taxonomies'));
+        // add_action('wp_ajax_pilates_upload_avatar', array($this, 'handle_avatar_upload'));
+        // add_filter('wp_handle_upload_prefilter', array($this, 'validate_avatar_upload'));
     }
 
-    public function validate_avatar_upload($file)
-    {
-        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
 
-        if (!in_array($file['type'], $allowed_types)) {
-            $file['error'] = 'Only image files allowed';
-            return $file;
-        }
+    // Pozovi ovu funkciju u dashboard.php za debug:
+    // Pilates_Main::debug_avatar_data($current_user->ID);
+    // public function handle_avatar_upload()
+    // {
+    //     error_log('=== AVATAR UPLOAD START ===');
 
-        if ($file['size'] > 1048576) { // 1MB
-            $file['error'] = 'File too large (max 1MB)';
-            return $file;
-        }
+    //     if (!wp_verify_nonce($_POST['nonce'], 'pilates_avatar_nonce')) {
+    //         error_log('Nonce verification failed');
+    //         wp_send_json_error('Nonce verification failed');
+    //     }
 
-        return $file;
-    }
+    //     if (!is_user_logged_in()) {
+    //         wp_send_json_error('Unauthorized');
+    //     }
+
+    //     if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== 0) {
+    //         wp_send_json_error('No file uploaded');
+    //     }
+
+    //     $current_user = wp_get_current_user();
+    //     error_log("Uploading avatar for user: {$current_user->ID}");
+
+    //     // Delete old avatar if exists
+    //     $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+    //     if ($old_avatar_id) {
+    //         error_log("Deleting old avatar: {$old_avatar_id}");
+    //         wp_delete_attachment($old_avatar_id, true);
+    //     }
+
+    //     require_once(ABSPATH . 'wp-admin/includes/file.php');
+    //     require_once(ABSPATH . 'wp-admin/includes/image.php');
+
+    //     // Handle upload
+    //     $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
+
+    //     if (isset($uploaded['error'])) {
+    //         error_log("Upload error: " . $uploaded['error']);
+    //         wp_send_json_error($uploaded['error']);
+    //     }
+
+    //     // Create attachment
+    //     $attachment_id = wp_insert_attachment(array(
+    //         'post_title' => 'Avatar - ' . $current_user->display_name,
+    //         'post_content' => '',
+    //         'post_status' => 'inherit',
+    //         'post_mime_type' => $uploaded['type']
+    //     ), $uploaded['file']);
+
+    //     if (is_wp_error($attachment_id)) {
+    //         error_log("Attachment creation failed");
+    //         wp_send_json_error('Failed to create attachment');
+    //     }
+
+    //     error_log("Created attachment: {$attachment_id}");
+
+    //     // Generate metadata
+    //     $attach_data = wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
+    //     wp_update_attachment_metadata($attachment_id, $attach_data);
+
+    //     // CRUCIAL: Force immediate save to user meta
+    //     delete_user_meta($current_user->ID, 'pilates_avatar'); // Clear first
+    //     $meta_result = add_user_meta($current_user->ID, 'pilates_avatar', $attachment_id, true);
+
+    //     if (!$meta_result) {
+    //         // If add fails, try update
+    //         $meta_result = update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
+    //     }
+
+    //     error_log("User meta update result: " . ($meta_result ? 'SUCCESS' : 'FAILED'));
+
+    //     // Update students table
+    //     global $wpdb;
+    //     $table_name = $wpdb->prefix . 'pilates_students';
+
+    //     // First check if student exists
+    //     $student_exists = $wpdb->get_var($wpdb->prepare(
+    //         "SELECT id FROM $table_name WHERE user_id = %d",
+    //         $current_user->ID
+    //     ));
+
+    //     if ($student_exists) {
+    //         $db_result = $wpdb->update(
+    //             $table_name,
+    //             array('avatar_id' => $attachment_id),
+    //             array('user_id' => $current_user->ID),
+    //             array('%d'),
+    //             array('%d')
+    //         );
+    //         error_log("Database update result: " . ($db_result !== false ? 'SUCCESS' : 'FAILED'));
+
+    //         if ($db_result === false) {
+    //             error_log("Database error: " . $wpdb->last_error);
+    //         }
+    //     } else {
+    //         error_log("Student record not found for user ID: " . $current_user->ID);
+    //     }
+
+    //     // Verify save immediately
+    //     $saved_avatar = get_user_meta($current_user->ID, 'pilates_avatar', true);
+    //     error_log("Verified saved avatar ID: {$saved_avatar}");
+
+    //     // Clear any caches
+    //     wp_cache_delete($current_user->ID, 'user_meta');
+
+    //     // Get fresh URL
+    //     $avatar_url = self::get_user_avatar_url($current_user->ID, 150);
+
+    //     error_log('=== AVATAR UPLOAD END ===');
+
+    //     wp_send_json_success(array(
+    //         'avatar_url' => $avatar_url,
+    //         'avatar_id' => $attachment_id,
+    //         'saved_id' => $saved_avatar,
+    //         'direct_url' => wp_get_attachment_url($attachment_id)
+    //     ));
+    // }
+
+    // public static function get_user_avatar_url($user_id, $size = 150)
+    // {
+    //     error_log("get_user_avatar_url called for user: {$user_id}");
+    //     // Force fresh data
+    //     wp_cache_delete($user_id, 'user_meta');
+
+    //     $avatar_id = get_user_meta($user_id, 'pilates_avatar', true);
+
+    //     error_log("get_user_avatar_url - User: {$user_id}, Avatar ID: {$avatar_id}");
+
+    //     if ($avatar_id) {
+    //         $avatar_url = wp_get_attachment_url($avatar_id);
+
+    //         if ($avatar_url) {
+    //             // Verify file exists
+    //             $file_path = get_attached_file($avatar_id);
+    //             if ($file_path && file_exists($file_path)) {
+    //                 // Strong cache busting
+    //                 $timestamp = filemtime($file_path);
+    //                 return $avatar_url . '?v=' . $timestamp . '&id=' . $avatar_id . '&t=' . time();
+    //             }
+    //         }
+
+    //         // If we get here, avatar is broken - clean it up
+    //         error_log("Cleaning up broken avatar {$avatar_id} for user {$user_id}");
+    //         delete_user_meta($user_id, 'pilates_avatar');
+
+    //         global $wpdb;
+    //         $table_name = $wpdb->prefix . 'pilates_students';
+    //         $wpdb->update(
+    //             $table_name,
+    //             array('avatar_id' => null),
+    //             array('user_id' => $user_id)
+    //         );
+    //     }
+
+    //     // Return default avatar
+    //     return get_avatar_url($user_id, array('size' => $size));
+    // }
+
+    // public function validate_avatar_upload($file)
+    // {
+    //     $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
+
+    //     // if (!in_array($file['type'], $allowed_types)) {
+    //     //     $file['error'] = 'Only image files allowed';
+    //     //     return $file;
+    //     // }
+
+    //     if ($file['size'] > 1048576) { // 1MB
+    //         $file['error'] = 'File too large (max 1MB)';
+    //         return $file;
+    //     }
+
+    //     return $file;
+    // }
     public function handle_subtitle_request()
     {
         if (isset($_GET['pilates_subtitle']) && isset($_GET['file_id'])) {
@@ -274,17 +315,18 @@ class Pilates_Main
 
         $args = array(
             'labels' => $labels,
-            'public' => false,
+            'public' => true, // mora biti true da bi Polylang video
             'show_ui' => true,
             'show_in_menu' => true,
             'menu_position' => 31,
             'capability_type' => 'post',
             'hierarchical' => true,
-            'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'), // page-attributes = Order field
+            'supports' => array('title', 'editor', 'thumbnail', 'page-attributes'),
             'has_archive' => false,
-            'rewrite' => false,
+            'rewrite' => true,
             'query_var' => true,
-            'menu_icon' => 'dashicons-heart'
+            'menu_icon' => 'dashicons-heart',
+            'show_in_rest' => true, // VAŽNO za Polylang i Gutenberg
         );
 
         register_post_type('pilates_exercise', $args);
@@ -312,11 +354,12 @@ class Pilates_Main
             'show_ui' => true,
             'show_admin_column' => true,
             'query_var' => true,
-            'public' => false,
+            'public' => true, // Polylang zahteva
             'show_in_menu' => true,
             'show_tagcloud' => false,
-            'rewrite' => false,
+            'rewrite' => true,
             'meta_box_cb' => 'post_categories_meta_box',
+            'show_in_rest' => true,
         ));
 
         // Register taxonomy: Positions
@@ -342,13 +385,15 @@ class Pilates_Main
             'show_ui' => true,
             'show_admin_column' => true,
             'query_var' => true,
-            'public' => false,
+            'public' => true,
             'show_in_menu' => true,
             'show_tagcloud' => false,
-            'rewrite' => false,
+            'rewrite' => true,
             'meta_box_cb' => 'post_categories_meta_box',
+            'show_in_rest' => true,
         ));
     }
+
 
     public function create_tables()
     {
