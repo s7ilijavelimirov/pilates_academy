@@ -124,10 +124,10 @@ class Pilates_Main
             $translated_id = pll_get_post($exercise_id, $slug);
             if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
                 $query_args['exercise'] = $translated_id;
-                error_log("Language switch: Exercise {$exercise_id} -> {$translated_id} for language {$slug}");
+             
             } else {
                 $query_args['exercise'] = $exercise_id;
-                error_log("Language switch: No translation found for exercise {$exercise_id} in {$slug}, keeping original");
+               
             }
         }
 
@@ -193,14 +193,13 @@ class Pilates_Main
         }
     }
 
-    public function add_rewrite_rules()
-    {
-        add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
-        add_rewrite_rule('^pilates-dashboard/?(.*)$', 'index.php?pilates_page=dashboard&pilates_params=$matches[1]', 'top');
+   public function add_rewrite_rules()
+{
+    add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
+    add_rewrite_rule('^pilates-dashboard/?.*', 'index.php?pilates_page=dashboard', 'top');
 
-        add_rewrite_tag('%pilates_page%', '([^&]+)');
-        add_rewrite_tag('%pilates_params%', '(.*)');
-    }
+    add_rewrite_tag('%pilates_page%', '([^&]+)');
+}
 
     public function custom_template_loader($template)
     {
@@ -237,7 +236,7 @@ class Pilates_Main
         $lang = get_query_var('lang');
 
         if ($lang && in_array($lang, pll_languages_list())) {
-            error_log("Setting language context to: " . $lang);
+          
 
             // Set Polylang current language - ISPRAVLJEN PRISTUP
             $language_obj = PLL()->model->get_language($lang);
@@ -406,30 +405,34 @@ class Pilates_Main
             if (!in_array('stored_password', $existing_columns)) {
                 $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN stored_password varchar(255) NULL AFTER login_count");
             }
+            if (!in_array('credentials_sent', $existing_columns)) {
+                $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN credentials_sent tinyint(1) DEFAULT 0 AFTER stored_password");
+            }
         }
 
         $sql_students = "CREATE TABLE $table_students (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) NULL,
-        first_name varchar(100) NOT NULL,
-        last_name varchar(100) NOT NULL,
-        email varchar(100),
-        phone varchar(20),
-        primary_language varchar(5) DEFAULT 'en',
-        date_joined date NOT NULL,
-        validity_date date NULL,
-        status varchar(20) DEFAULT 'active',
-        notes text,
-        avatar_id bigint(20) NULL,
-        last_login datetime NULL,
-        login_count int DEFAULT 0,
-        stored_password varchar(255) NULL,
-        created_at datetime DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY user_id (user_id),
-        KEY email (email),
-        KEY avatar_id (avatar_id)
-    ) $charset_collate;";
+    id mediumint(9) NOT NULL AUTO_INCREMENT,
+    user_id bigint(20) NULL,
+    first_name varchar(100) NOT NULL,
+    last_name varchar(100) NOT NULL,
+    email varchar(100),
+    phone varchar(20),
+    primary_language varchar(5) DEFAULT 'en',
+    date_joined date NOT NULL,
+    validity_date date NULL,
+    status varchar(20) DEFAULT 'active',
+    notes text,
+    avatar_id bigint(20) NULL,
+    last_login datetime NULL,
+    login_count int DEFAULT 0,
+    stored_password varchar(255) NULL,
+    credentials_sent tinyint(1) DEFAULT 0,
+    created_at datetime DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY user_id (user_id),
+    KEY email (email),
+    KEY avatar_id (avatar_id)
+) $charset_collate;";
 
         // Ostatak koda ostaje isti...
         $table_sessions = $wpdb->prefix . 'pilates_student_sessions';

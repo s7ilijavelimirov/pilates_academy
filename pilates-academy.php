@@ -118,13 +118,12 @@ add_action('init', function () {
 
 // OSNOVNI REWRITE RULES - UVEK SE DODAJU
 add_action('init', function () {
-    // Osnovni rules za default jezik
+    // Osnovni rules za default jezik - WILDCARD za sve dashboard URL-ove
     add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
-    add_rewrite_rule('^pilates-dashboard/?(.*)$', 'index.php?pilates_page=dashboard&pilates_params=$matches[1]', 'top');
+    add_rewrite_rule('^pilates-dashboard/?.*', 'index.php?pilates_page=dashboard', 'top');
 
     // Dodaj rewrite tags
     add_rewrite_tag('%pilates_page%', '([^&]+)');
-    add_rewrite_tag('%pilates_params%', '(.*)');
     add_rewrite_tag('%lang%', '([^&]+)');
 }, 10);
 
@@ -143,8 +142,8 @@ add_action('init', function () {
                     'top'
                 );
                 add_rewrite_rule(
-                    '^' . $lang . '/pilates-dashboard/?(.*)$',
-                    'index.php?pilates_page=dashboard&lang=' . $lang . '&pilates_params=$matches[1]',
+                    '^' . $lang . '/pilates-dashboard/?.*',
+                    'index.php?pilates_page=dashboard&lang=' . $lang,
                     'top'
                 );
             }
@@ -509,33 +508,30 @@ add_action('admin_init', function () {
 });
 
 // Parse query string parameters for language URLs
-add_action('parse_request', function ($wp) {
-    if (isset($wp->query_vars['lang']) && isset($wp->query_vars['pilates_page'])) {
-        if (isset($wp->query_vars['pilates_params']) && !empty($wp->query_vars['pilates_params'])) {
-            $params = $wp->query_vars['pilates_params'];
+// add_action('parse_request', function ($wp) {
+//     if (isset($wp->query_vars['lang']) && isset($wp->query_vars['pilates_page'])) {
+//         if (isset($wp->query_vars['pilates_params']) && !empty($wp->query_vars['pilates_params'])) {
+//             $params = $wp->query_vars['pilates_params'];
 
-            if (strpos($params, '?') !== false) {
-                $query_string = parse_url($params, PHP_URL_QUERY);
-                if ($query_string) {
-                    parse_str($query_string, $parsed_params);
-                    foreach ($parsed_params as $key => $value) {
-                        $_GET[$key] = sanitize_text_field($value);
-                        $wp->query_vars[$key] = sanitize_text_field($value);
-                    }
-                }
-            }
-        }
-    }
-});
+//             if (strpos($params, '?') !== false) {
+//                 $query_string = parse_url($params, PHP_URL_QUERY);
+//                 if ($query_string) {
+//                     parse_str($query_string, $parsed_params);
+//                     foreach ($parsed_params as $key => $value) {
+//                         $_GET[$key] = sanitize_text_field($value);
+//                         $wp->query_vars[$key] = sanitize_text_field($value);
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// });
 
-// Debug hook za troubleshooting
-add_action('wp', function () {
-    if (isset($_GET['pilates_debug'])) {
-        error_log("=== PILATES DEBUG ===");
-        error_log("pilates_page: " . get_query_var('pilates_page'));
-        error_log("lang: " . get_query_var('lang'));
-        error_log("REQUEST_URI: " . $_SERVER['REQUEST_URI']);
-        //error_log("Query vars: " . print_r(get_query_vars(), true));
-        error_log("=== END DEBUG ===");
+// PRIVREMENO - ukloni nakon testiranja
+add_action('admin_init', function() {
+    if (isset($_GET['flush_pilates'])) {
+        flush_rewrite_rules(true);
+        wp_redirect(admin_url());
+        exit;
     }
 });

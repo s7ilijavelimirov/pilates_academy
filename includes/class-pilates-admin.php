@@ -211,7 +211,7 @@ class Pilates_Admin
                             <th>Date Joined</th>
                             <th>Validity Date</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th style="width:250px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -267,21 +267,41 @@ class Pilates_Admin
                                 <td>
                                     <a href="<?php echo admin_url('admin.php?page=pilates-students&action=edit&id=' . $student->id); ?>" class="button button-small">Edit</a>
 
-                                    <?php if (!$student->user_id): ?>
-                                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
-                                            <?php wp_nonce_field('pilates_send_credentials', 'pilates_nonce'); ?>
-                                            <input type="hidden" name="action" value="pilates_send_credentials">
-                                            <input type="hidden" name="student_id" value="<?php echo $student->id; ?>">
-                                            <input type="submit" class="button button-small button-primary" value="Send Login" onclick="return confirm('This will create a user account and send login credentials. Continue?')">
-                                        </form>
-                                    <?php else: ?>
-                                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
-                                            <?php wp_nonce_field('pilates_send_credentials', 'pilates_nonce'); ?>
-                                            <input type="hidden" name="action" value="pilates_send_credentials">
-                                            <input type="hidden" name="student_id" value="<?php echo $student->id; ?>">
-                                            <input type="submit" class="button button-small" value="Resend Login" onclick="return confirm('This will reset the password and send new login credentials. Continue?')">
-                                        </form>
-                                    <?php endif; ?>
+                                    <?php
+                                    $credentials_sent = isset($student->credentials_sent) ? $student->credentials_sent : 0;
+                                    $has_user = !empty($student->user_id);
+                                    ?>
+
+                                    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
+                                        <?php wp_nonce_field('pilates_send_credentials', 'pilates_nonce'); ?>
+                                        <input type="hidden" name="action" value="pilates_send_credentials">
+                                        <input type="hidden" name="student_id" value="<?php echo $student->id; ?>">
+
+                                        <?php if (!$has_user): ?>
+                                            <!-- Nema user account -->
+                                            <input type="submit"
+                                                class="button button-small"
+                                                value="📧 Send Login"
+                                                style="background: #00a32a; border-color: #00a32a; color: white;"
+                                                onclick="return confirm('This will create user account and send login credentials. Continue?')">
+
+                                        <?php elseif (!$credentials_sent): ?>
+                                            <!-- Ima account ali nisu poslani credentials -->
+                                            <input type="submit"
+                                                class="button button-small"
+                                                value="📧 Send Login"
+                                                style="background: #ff8c00; border-color: #ff8c00; color: white;"
+                                                onclick="return confirm('Send login credentials to this student?')">
+
+                                        <?php else: ?>
+                                            <!-- Credentials su već poslani -->
+                                            <input type="submit"
+                                                class="button button-small"
+                                                value="🔄 Resend Login"
+                                                style="background: #0073aa; border-color: #0073aa; color: white;"
+                                                onclick="return confirm('This will reset password and send new credentials. Continue?')">
+                                        <?php endif; ?>
+                                    </form>
 
                                     <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="display: inline-block; margin-left: 5px;">
                                         <?php wp_nonce_field('pilates_delete_student', 'pilates_nonce'); ?>
@@ -470,6 +490,9 @@ class Pilates_Admin
                     'greeting' => 'Welcome to Pilates Academy, {first_name}!',
                     'intro' => 'We\'re excited to have you on board. Your account has been successfully created.',
                     'credentials_text' => 'Here are your login details:',
+                    'username_label' => 'Username (Email)',
+                    'password_label' => 'Password',
+                    'login_url_label' => 'Login URL',
                     'button_text' => 'Log In to Your Account',
                     'help_text' => 'If you have any questions or need help, feel free to reach out. We\'re here for you!',
                     'footer' => 'Best regards,<br>Pilates Academy Team'
@@ -479,6 +502,9 @@ class Pilates_Admin
                     'greeting' => 'Willkommen bei Pilates Academy, {first_name}!',
                     'intro' => 'Wir freuen uns, Sie an Bord zu haben. Ihr Konto wurde erfolgreich erstellt.',
                     'credentials_text' => 'Hier sind Ihre Anmeldedaten:',
+                    'username_label' => 'Benutzername (E-Mail)',
+                    'password_label' => 'Passwort',
+                    'login_url_label' => 'Anmelde-URL',
                     'button_text' => 'In Ihr Konto einloggen',
                     'help_text' => 'Wenn Sie Fragen haben oder Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren. Wir sind für Sie da!',
                     'footer' => 'Mit freundlichen Grüßen,<br>Pilates Academy Team'
@@ -488,6 +514,9 @@ class Pilates_Admin
                     'greeting' => 'Ласкаво просимо до Pilates Academy, {first_name}!',
                     'intro' => 'Ми раді вітати Вас на борту. Ваш обліковий запис було успішно створено.',
                     'credentials_text' => 'Ось ваші дані для входу:',
+                    'username_label' => 'Ім\'я користувача (Email)',
+                    'password_label' => 'Пароль',
+                    'login_url_label' => 'URL для входу',
                     'button_text' => 'Увійти до вашого облікового запису',
                     'help_text' => 'Якщо у вас є питання або потрібна допомога, не соромтеся звертатися. Ми тут для вас!',
                     'footer' => 'З найкращими побажаннями,<br>Команда Pilates Academy'
@@ -499,6 +528,9 @@ class Pilates_Admin
                     'greeting' => 'Hello {first_name},',
                     'intro' => 'Your password has been updated.',
                     'credentials_text' => 'Your updated login details:',
+                    'username_label' => 'Username (Email)',
+                    'password_label' => 'New Password',
+                    'login_url_label' => 'Login URL',
                     'button_text' => 'Login Now',
                     'footer' => 'Best regards,<br>Pilates Academy Team'
                 ),
@@ -507,6 +539,9 @@ class Pilates_Admin
                     'greeting' => 'Hallo {first_name},',
                     'intro' => 'Ihr Passwort wurde aktualisiert.',
                     'credentials_text' => 'Ihre aktualisierten Anmeldedaten:',
+                    'username_label' => 'Benutzername (E-Mail)',
+                    'password_label' => 'Neues Passwort',
+                    'login_url_label' => 'Anmelde-URL',
                     'button_text' => 'Jetzt einloggen',
                     'footer' => 'Mit freundlichen Grüßen,<br>Pilates Academy Team'
                 ),
@@ -515,6 +550,9 @@ class Pilates_Admin
                     'greeting' => 'Привіт {first_name},',
                     'intro' => 'Ваш пароль було оновлено.',
                     'credentials_text' => 'Ваші оновлені дані для входу:',
+                    'username_label' => 'Ім\'я користувача (Email)',
+                    'password_label' => 'Новий пароль',
+                    'login_url_label' => 'URL для входу',
                     'button_text' => 'Увійти зараз',
                     'footer' => 'З найкращими побажаннями,<br>Команда Pilates Academy'
                 )
@@ -720,6 +758,8 @@ class Pilates_Admin
         $sent = $this->send_welcome_email($student->email, $password, $student->first_name, $student->primary_language);
 
         if ($sent) {
+            // OZNAČAVA da su credentials poslani
+            $wpdb->update($table_name, array('credentials_sent' => 1), array('id' => $student_id));
             wp_redirect(admin_url('admin.php?page=pilates-students&message=credentials_sent'));
         } else {
             wp_redirect(admin_url('admin.php?page=pilates-students&message=error&error=' . urlencode('Failed to send email. Please check email settings.')));
@@ -993,80 +1033,186 @@ class Pilates_Admin
         $subject = $template['subject'];
 
         $message = "
-    <html>
-    <head>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f8f8f8;
-                margin: 0;
-                padding: 0;
-            }
-            .email-container {
-                background-color: #ffffff;
-                margin: 20px auto;
-                padding: 30px;
-                max-width: 600px;
-                border: 1px solid #e0e0e0;
-                border-radius: 8px;
-            }
-            h1 {
-                color: #04b2be;
-                font-size: 24px;
-                margin-bottom: 20px;
-            }
-            p {
-                color: #2f2f2f;
-                font-size: 16px;
-                line-height: 1.6;
-            }
-            .credentials {
-                background-color: #f0fafa;
-                padding: 15px;
-                border-left: 5px solid #1ad8cc;
-                margin: 20px 0;
-                font-family: monospace;
-                color: #2f2f2f;
-            }
-            .button {
-                display: inline-block;
-                padding: 12px 20px;
-                background-color: #04b2be;
-                color: #ffffff !important;
-                text-decoration: none;
-                border-radius: 4px;
-                font-weight: bold;
-                margin-top: 20px;
-            }
-            .footer {
-                font-size: 14px;
-                color: #888888;
-                margin-top: 30px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class='email-container'>
+<html>
+<head>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fafa 0%, #e8f4f8 100%);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            border:1px solid
+        }
+        .email-container {
+            background: #ffffff;
+            margin: 0 auto;
+            padding: 0;
+            max-width: 600px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(4, 178, 190, 0.15);
+            overflow: hidden;
+            border:1px solid #04b2be;
+        }
+        .email-header {
+            background: linear-gradient(135deg, #04b2be 0%, #1ad8cc 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+        .email-header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .email-header .subtitle {
+            margin: 8px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        .email-body {
+            padding: 40px 30px;
+        }
+        .intro-text {
+            font-size: 18px;
+            color: #2f2f2f;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .credentials-box {
+            background: linear-gradient(135deg, #f0fafa 0%, #e8f6f6 100%);
+            border: 2px solid #04b2be;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            position: relative;
+        }
+        .credentials-box::before {
+            content: '🔐';
+            position: absolute;
+            top: -15px;
+            left: 30px;
+            background: #04b2be;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 50%;
+            font-size: 16px;
+        }
+        .credentials-title {
+            color: #04b2be;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+        .credential-item {
+            background: white;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+        .credential-label {
+            font-weight: 600;
+            color: #04b2be;
+            min-width: 140px;
+            font-size: 14px;
+        }
+        .credential-value {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+            flex: 1;
+            margin-left: 10px;
+            font-size: 14px;
+            color: #2f2f2f;
+            word-break: break-all;
+        }
+        .login-button {
+            display: block;
+            background: linear-gradient(135deg, #04b2be 0%, #1ad8cc 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            text-align: center;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 30px auto;
+            max-width: 280px;
+            box-shadow: 0 4px 15px rgba(4, 178, 190, 0.3);
+            transition: all 0.3s ease;
+        }
+        .help-text {
+            background: #f8f9fa;
+            border-left: 4px solid #1ad8cc;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 0 8px 8px 0;
+            color: #495057;
+        }
+        .email-footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class='email-container'>
+        <div class='email-header'>
+          
             <h1>" . str_replace('{first_name}', $first_name, $template['greeting']) . "</h1>
-            <p>{$template['intro']}</p>
-            <p>{$template['credentials_text']}</p>
-
-            <div class='credentials'>
-                Email (Username): {$email}<br>
-                Password: {$password}<br>
-                Login URL: <a href='{$login_url}'>{$login_url}</a>
-            </div>
-
-            <p>Click the button below to log in to your personal dashboard, where you can view your exercises and track your progress.</p>
-            <a href='{$login_url}' class='button'>{$template['button_text']}</a>
-
-            <p>{$template['help_text']}</p>
-
-            <p class='footer'>{$template['footer']}</p>
+            <div class='subtitle'>Premium Training Platform</div>
         </div>
-    </body>
-    </html>
-    ";
+        
+        <div class='email-body'>
+            <div class='intro-text'>{$template['intro']}</div>
+            
+            <div class='credentials-box'>
+                <div class='credentials-title'>{$template['credentials_text']}</div>
+                
+                <div class='credential-item'>
+                    <div class='credential-label'>{$template['username_label']}:</div>
+                    <div class='credential-value'>{$email}</div>
+                </div>
+                
+                <div class='credential-item'>
+                    <div class='credential-label'>{$template['password_label']}:</div>
+                    <div class='credential-value'>{$password}</div>
+                </div>
+                
+                <div class='credential-item'>
+                    <div class='credential-label'>{$template['login_url_label']}:</div>
+                    <div class='credential-value'><a href='{$login_url}' style='color: #04b2be; text-decoration: none;'>{$login_url}</a></div>
+                </div>
+            </div>
+            
+            <a href='{$login_url}' class='login-button'>{$template['button_text']}</a>
+            
+            <div class='help-text'>
+                💡 {$template['help_text']}
+            </div>
+        </div>
+        
+        <div class='email-footer'>
+            {$template['footer']}
+            <br><br>
+            <small>© 2025 Pilates Academy. All rights reserved.</small>
+        </div>
+    </div>
+</body>
+</html>
+";
 
         $headers = array('Content-Type: text/html; charset=UTF-8');
         return wp_mail($email, $subject, $message, $headers);
