@@ -30,18 +30,18 @@ class Pilates_Main
         }
     }
 
+    // Zameni postojeću polylang_integration funkciju u class-pilates-main.php
     public function polylang_integration()
     {
         if (!function_exists('pll_languages_list')) {
             return;
         }
 
-        // KRITIČNA ISPRAVKA: Dodaj rewrite rules za SVE jezike UKLJUČUJUĆI default
         $languages = pll_languages_list();
         $default_lang = pll_default_language();
 
         foreach ($languages as $lang) {
-            // DODAJ RULES ZA SVE JEZIKE, ne samo non-default
+            // Dodaj rules za sve jezike osim default-a
             if ($lang !== $default_lang) {
                 add_rewrite_rule(
                     '^' . $lang . '/pilates-login/?$',
@@ -55,6 +55,18 @@ class Pilates_Main
                 );
             }
         }
+
+        // KRITIČNA ISPRAVKA: Dodaj specifično za uk
+        add_rewrite_rule(
+            '^uk/pilates-login/?$',
+            'index.php?pilates_page=login&lang=uk',
+            'top'
+        );
+        add_rewrite_rule(
+            '^uk/pilates-dashboard/?(.*)$',
+            'index.php?pilates_page=dashboard&lang=uk&pilates_params=$matches[1]',
+            'top'
+        );
 
         add_rewrite_tag('%lang%', '([^&]+)');
         add_rewrite_tag('%pilates_params%', '(.*)');

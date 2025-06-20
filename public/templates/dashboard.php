@@ -461,12 +461,10 @@ function get_translated_dashboard_url($args = array())
                         <h2 class="section-title"><?php echo esc_html($day_title); ?> <?php echo pll_text('Training'); ?></h2>
 
                         <?php
-                        // Get exercises for current day
-                        $exercises_query = new WP_Query(array(
+                        // Get exercises for current day - ISPRAVKA ZA UKRAJINSKI
+                        $args = array(
                             'post_type' => 'pilates_exercise',
                             'posts_per_page' => -1,
-                            'lang' => $current_lang, // Polylang parameter
-                            'suppress_filters' => false, // VAŽNO: omogućava Polylang filtriranje
                             'tax_query' => array(
                                 array(
                                     'taxonomy' => 'exercise_day',
@@ -475,9 +473,34 @@ function get_translated_dashboard_url($args = array())
                                 )
                             ),
                             'fields' => 'ids'
-                        ));
+                        );
 
+                        // KRITIČNA ISPRAVKA za ukrajinski
+                        if ($current_lang === 'uk') {
+                            $args['suppress_filters'] = true;
+                            // Manuelno dobij translated terms
+                            $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                            if ($day_term && function_exists('pll_get_term')) {
+                                $translated_term_id = pll_get_term($day_term->term_id, 'uk');
+                                if ($translated_term_id && $translated_term_id !== $day_term->term_id) {
+                                    $args['tax_query'][0]['field'] = 'term_id';
+                                    $args['tax_query'][0]['terms'] = $translated_term_id;
+                                }
+                            }
+                        } else {
+                            $args['suppress_filters'] = false;
+                            if (function_exists('pll_default_language') && $current_lang !== pll_default_language()) {
+                                $args['lang'] = $current_lang;
+                            }
+                        }
+
+                        $exercises_query = new WP_Query($args);
                         $exercise_ids = $exercises_query->posts;
+
+                        // DEBUG za ukrajinski
+                        if ($current_lang === 'uk') {
+                            error_log("UK Exercise Query - Found IDs: " . print_r($exercise_ids, true));
+                        }
 
                         if (!empty($exercise_ids)) {
                             // Get unique positions from these exercises
@@ -495,12 +518,10 @@ function get_translated_dashboard_url($args = array())
 
                         if (!empty($positions)):
                             foreach ($positions as $position):
-                                // Get exercises for this position and day
-                                $position_exercises = get_posts(array(
+                                // Get exercises for this position and day - ISPRAVKA ZA UKRAJINSKI
+                                $position_args = array(
                                     'post_type' => 'pilates_exercise',
                                     'posts_per_page' => -1,
-                                    'lang' => $current_lang, // Polylang parameter
-                                    'suppress_filters' => false, // VAŽNO
                                     'tax_query' => array(
                                         'relation' => 'AND',
                                         array(
@@ -516,7 +537,42 @@ function get_translated_dashboard_url($args = array())
                                     ),
                                     'orderby' => 'menu_order',
                                     'order' => 'ASC'
-                                ));
+                                );
+
+                                // KRITIČNA ISPRAVKA za ukrajinski
+                                if ($current_lang === 'uk') {
+                                    $position_args['suppress_filters'] = true;
+
+                                    // Dobij translated day term
+                                    $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                    if ($day_term && function_exists('pll_get_term')) {
+                                        $translated_day_term_id = pll_get_term($day_term->term_id, 'uk');
+                                        if ($translated_day_term_id) {
+                                            $position_args['tax_query'][0]['field'] = 'term_id';
+                                            $position_args['tax_query'][0]['terms'] = $translated_day_term_id;
+                                        }
+                                    }
+
+                                    // Dobij translated position term
+                                    if (function_exists('pll_get_term')) {
+                                        $translated_position_id = pll_get_term($position->term_id, 'uk');
+                                        if ($translated_position_id) {
+                                            $position_args['tax_query'][1]['terms'] = $translated_position_id;
+                                        }
+                                    }
+                                } else {
+                                    $position_args['suppress_filters'] = false;
+                                    if (function_exists('pll_default_language') && $current_lang !== pll_default_language()) {
+                                        $position_args['lang'] = $current_lang;
+                                    }
+                                }
+
+                                $position_exercises = get_posts($position_args);
+
+                                // DEBUG za ukrajinski
+                                if ($current_lang === 'uk') {
+                                    error_log("UK Position Exercises found: " . count($position_exercises));
+                                }
 
                                 if (!empty($position_exercises)):
                         ?>
