@@ -258,17 +258,24 @@ class Pilates_Main
             global $wpdb;
             $table_name = $wpdb->prefix . 'pilates_students';
 
-            $wpdb->update(
-                $table_name,
-                array(
-                    'last_login' => current_time('mysql'),
-                    'login_count' => $wpdb->get_var($wpdb->prepare(
-                        "SELECT login_count FROM $table_name WHERE user_id = %d",
-                        $user->ID
-                    )) + 1
-                ),
-                array('user_id' => $user->ID)
-            );
+            // BEZBEDNA PROVERA
+            try {
+                $current_count = $wpdb->get_var($wpdb->prepare(
+                    "SELECT COALESCE(login_count, 0) FROM $table_name WHERE user_id = %d",
+                    $user->ID
+                ));
+
+                $wpdb->update(
+                    $table_name,
+                    array(
+                        'last_login' => current_time('mysql'),
+                        'login_count' => intval($current_count) + 1
+                    ),
+                    array('user_id' => $user->ID)
+                );
+            } catch (Exception $e) {
+                error_log('Pilates login tracking error: ' . $e->getMessage());
+            }
         }
     }
 
@@ -374,11 +381,33 @@ class Pilates_Main
     public function create_tables()
     {
         global $wpdb;
-
         $charset_collate = $wpdb->get_charset_collate();
 
-        // Students table WITH avatar_id column
         $table_students = $wpdb->prefix . 'pilates_students';
+
+        // ISPRAVKA - proveri da li tabela postoji pre ALTER
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_students'");
+
+        if ($table_exists) {
+            // Dodaj kolone ako ne postoje
+            $columns_check = $wpdb->get_results("SHOW COLUMNS FROM {$table_students}");
+            $existing_columns = wp_list_pluck($columns_check, 'Field');
+
+            if (!in_array('avatar_id', $existing_columns)) {
+                $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN avatar_id bigint(20) NULL AFTER notes");
+            }
+            if (!in_array('last_login', $existing_columns)) {
+                $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN last_login datetime NULL AFTER avatar_id");
+            }
+            if (!in_array('login_count', $existing_columns)) {
+                $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN login_count int DEFAULT 0 AFTER last_login");
+            }
+            // DODAJ NOVU KOLONU ZA PASSWORD
+            if (!in_array('stored_password', $existing_columns)) {
+                $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN stored_password varchar(255) NULL AFTER login_count");
+            }
+        }
+
         $sql_students = "CREATE TABLE $table_students (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         user_id bigint(20) NULL,
@@ -394,6 +423,7 @@ class Pilates_Main
         avatar_id bigint(20) NULL,
         last_login datetime NULL,
         login_count int DEFAULT 0,
+        stored_password varchar(255) NULL,
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         KEY user_id (user_id),
@@ -401,7 +431,7 @@ class Pilates_Main
         KEY avatar_id (avatar_id)
     ) $charset_collate;";
 
-        // Student sessions table
+        // Ostatak koda ostaje isti...
         $table_sessions = $wpdb->prefix . 'pilates_student_sessions';
         $sql_sessions = "CREATE TABLE $table_sessions (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -419,16 +449,5 @@ class Pilates_Main
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_students);
         dbDelta($sql_sessions);
-
-        // Dodaj avatar_id kolonu ako ne postoji (za postojeće tabele)
-        $column_exists = $wpdb->get_results($wpdb->prepare(
-            "SHOW COLUMNS FROM {$table_students} LIKE %s",
-            'avatar_id'
-        ));
-
-        if (empty($column_exists)) {
-            $wpdb->query("ALTER TABLE {$table_students} ADD COLUMN avatar_id bigint(20) NULL AFTER notes");
-            $wpdb->query("ALTER TABLE {$table_students} ADD KEY avatar_id (avatar_id)");
-        }
     }
 }

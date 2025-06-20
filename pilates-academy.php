@@ -23,7 +23,7 @@ define('PILATES_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('PILATES_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('PILATES_VERSION', '1.0.3');
 
-// Plugin activation
+// Plugin activation - DODAJ version check
 register_activation_hook(__FILE__, 'pilates_activate');
 function pilates_activate()
 {
@@ -47,13 +47,11 @@ function pilates_activate()
     }
 
     // Set version
-    add_option('pilates_academy_version', PILATES_VERSION);
+    update_option('pilates_academy_version', PILATES_VERSION);
 
-    // Clear routing cache for new version
-    delete_option('pilates_rules_ready');
-
-    // Flush rewrite rules
-    flush_rewrite_rules();
+    // DODAJ OVO - Force refresh
+    delete_option('pilates_polylang_flushed_v2');
+    flush_rewrite_rules(true);
 }
 
 // Add settings link on plugin page

@@ -150,6 +150,10 @@ class Pilates_Admin
             $message = $_GET['message'];
             if ($message === 'added') {
                 echo '<div class="notice notice-success"><p>Student successfully added!</p></div>';
+            } elseif ($message === 'updated') {  // DODAJ OVO
+                echo '<div class="notice notice-success"><p>Student successfully updated!</p></div>';
+            } elseif ($message === 'password_changed') {
+                echo '<div class="notice notice-success"><p>Password changed and email sent!</p></div>';
             } elseif ($message === 'deleted') {
                 echo '<div class="notice notice-success"><p>Student successfully deleted!</p></div>';
             } elseif ($message === 'credentials_sent') {
@@ -315,22 +319,49 @@ class Pilates_Admin
 
         $email = sanitize_email($_POST['email']);
 
-        // Check if student with this email already exists
+        // Check if student exists
         $existing = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE email = %s", $email));
         if ($existing) {
-            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('A student with this email already exists')));
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('Student with this email already exists')));
             exit;
         }
 
-        // Check if WordPress user already exists
+        // Check if WP user exists
         if (email_exists($email)) {
-            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('A WordPress user with this email already exists')));
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('WordPress user with this email already exists')));
             exit;
         }
 
-        // Save student data WITHOUT creating WordPress user yet
+        // Get password
+        $password = !empty($_POST['student_password']) ? $_POST['student_password'] : wp_generate_password(10, false);
+
+        // Create WordPress user
+        $user_data = array(
+            'user_login' => $email,
+            'user_email' => $email,
+            'user_pass' => $password,
+            'first_name' => sanitize_text_field($_POST['first_name']),
+            'last_name' => sanitize_text_field($_POST['last_name']),
+            'display_name' => sanitize_text_field($_POST['first_name']) . ' ' . sanitize_text_field($_POST['last_name']),
+            'role' => 'pilates_student'
+        );
+
+        $user_id = wp_insert_user($user_data);
+
+        if (is_wp_error($user_id)) {
+            wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode($user_id->get_error_message())));
+            exit;
+        }
+
+        // Add capability
+        $user = get_user_by('id', $user_id);
+        if ($user) {
+            $user->add_cap('pilates_access');
+        }
+
+        // Save student data sa STORED PASSWORD
         $data = array(
-            'user_id' => null, // No user created yet
+            'user_id' => $user_id,
             'first_name' => sanitize_text_field($_POST['first_name']),
             'last_name' => sanitize_text_field($_POST['last_name']),
             'email' => $email,
@@ -339,20 +370,22 @@ class Pilates_Admin
             'date_joined' => sanitize_text_field($_POST['date_joined']),
             'validity_date' => !empty($_POST['validity_date']) ? sanitize_text_field($_POST['validity_date']) : null,
             'notes' => sanitize_textarea_field($_POST['notes']),
-            'status' => 'inactive' // Start as inactive until credentials sent
+            'status' => 'active',
+            'stored_password' => $password // ČUVA ORIGINALNU ŠIFRU
         );
 
         $result = $wpdb->insert($table_name, $data);
 
         if ($result === false) {
+            wp_delete_user($user_id);
             wp_redirect(admin_url('admin.php?page=pilates-students&action=add&message=error&error=' . urlencode('Database error occurred')));
             exit;
         }
 
+        // BEZ EMAIL-A ovde
         wp_redirect(admin_url('admin.php?page=pilates-students&message=added'));
         exit;
     }
-
     public function handle_update_student()
     {
         check_admin_referer('pilates_update_student', 'pilates_nonce');
@@ -366,7 +399,6 @@ class Pilates_Admin
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_students';
 
-        // Get current student data
         $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $student_id));
 
         if (!$student) {
@@ -387,9 +419,14 @@ class Pilates_Admin
             'notes' => sanitize_textarea_field($_POST['notes'])
         );
 
+        // Ako je unet novi password, ažuriraj i stored_password
+        if (!empty($_POST['student_password'])) {
+            $data['stored_password'] = $_POST['student_password'];
+        }
+
         $result = $wpdb->update($table_name, $data, array('id' => $student_id));
 
-        // Update WordPress user if exists
+        // Update WordPress user
         if ($student->user_id) {
             $user_data = array(
                 'ID' => $student->user_id,
@@ -399,14 +436,17 @@ class Pilates_Admin
                 'display_name' => $data['first_name'] . ' ' . $data['last_name']
             );
 
-            // Update user login if email changed
-            if ($student->email !== $data['email']) {
-                $user_data['user_login'] = $data['email'];
+            // Update password u WP-u ako je unet
+            if (!empty($_POST['student_password'])) {
+                wp_set_password($_POST['student_password'], $student->user_id);
+
+                // Send password change email - samo kad se promeni password
+                $this->send_password_change_email($student, $_POST['student_password']);
             }
 
             wp_update_user($user_data);
 
-            // Update user capabilities based on status
+            // Update capabilities
             $user = get_user_by('id', $student->user_id);
             if ($user) {
                 if ($data['status'] === 'active') {
@@ -421,6 +461,109 @@ class Pilates_Admin
         exit;
     }
 
+    private function get_email_templates($language, $type = 'welcome')
+    {
+        $templates = array(
+            'welcome' => array(
+                'en' => array(
+                    'subject' => 'Welcome to Pilates Academy - Your Login Credentials',
+                    'greeting' => 'Welcome to Pilates Academy, {first_name}!',
+                    'intro' => 'We\'re excited to have you on board. Your account has been successfully created.',
+                    'credentials_text' => 'Here are your login details:',
+                    'button_text' => 'Log In to Your Account',
+                    'help_text' => 'If you have any questions or need help, feel free to reach out. We\'re here for you!',
+                    'footer' => 'Best regards,<br>Pilates Academy Team'
+                ),
+                'de' => array(
+                    'subject' => 'Willkommen bei Pilates Academy - Ihre Anmeldedaten',
+                    'greeting' => 'Willkommen bei Pilates Academy, {first_name}!',
+                    'intro' => 'Wir freuen uns, Sie an Bord zu haben. Ihr Konto wurde erfolgreich erstellt.',
+                    'credentials_text' => 'Hier sind Ihre Anmeldedaten:',
+                    'button_text' => 'In Ihr Konto einloggen',
+                    'help_text' => 'Wenn Sie Fragen haben oder Hilfe benötigen, zögern Sie nicht, uns zu kontaktieren. Wir sind für Sie da!',
+                    'footer' => 'Mit freundlichen Grüßen,<br>Pilates Academy Team'
+                ),
+                'uk' => array(
+                    'subject' => 'Ласкаво просимо до Pilates Academy - Ваші дані для входу',
+                    'greeting' => 'Ласкаво просимо до Pilates Academy, {first_name}!',
+                    'intro' => 'Ми раді вітати Вас на борту. Ваш обліковий запис було успішно створено.',
+                    'credentials_text' => 'Ось ваші дані для входу:',
+                    'button_text' => 'Увійти до вашого облікового запису',
+                    'help_text' => 'Якщо у вас є питання або потрібна допомога, не соромтеся звертатися. Ми тут для вас!',
+                    'footer' => 'З найкращими побажаннями,<br>Команда Pilates Academy'
+                )
+            ),
+            'password_change' => array(
+                'en' => array(
+                    'subject' => 'Pilates Academy - Password Updated',
+                    'greeting' => 'Hello {first_name},',
+                    'intro' => 'Your password has been updated.',
+                    'credentials_text' => 'Your updated login details:',
+                    'button_text' => 'Login Now',
+                    'footer' => 'Best regards,<br>Pilates Academy Team'
+                ),
+                'de' => array(
+                    'subject' => 'Pilates Academy - Passwort aktualisiert',
+                    'greeting' => 'Hallo {first_name},',
+                    'intro' => 'Ihr Passwort wurde aktualisiert.',
+                    'credentials_text' => 'Ihre aktualisierten Anmeldedaten:',
+                    'button_text' => 'Jetzt einloggen',
+                    'footer' => 'Mit freundlichen Grüßen,<br>Pilates Academy Team'
+                ),
+                'uk' => array(
+                    'subject' => 'Pilates Academy - Пароль оновлено',
+                    'greeting' => 'Привіт {first_name},',
+                    'intro' => 'Ваш пароль було оновлено.',
+                    'credentials_text' => 'Ваші оновлені дані для входу:',
+                    'button_text' => 'Увійти зараз',
+                    'footer' => 'З найкращими побажаннями,<br>Команда Pilates Academy'
+                )
+            )
+        );
+
+        $lang = isset($templates[$type][$language]) ? $language : 'en'; // fallback to English
+        return $templates[$type][$lang];
+    }
+    private function send_password_change_email($student, $new_password)
+    {
+        $template = $this->get_email_templates($student->primary_language, 'password_change');
+        $login_url = $this->get_language_login_url($student->primary_language);
+
+        $subject = $template['subject'];
+
+        $message = "
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f8f8f8; }
+            .email-container { background-color: #ffffff; margin: 20px auto; padding: 30px; max-width: 600px; border-radius: 8px; }
+            h1 { color: #04b2be; }
+            .credentials { background-color: #f0fafa; padding: 15px; border-left: 5px solid #1ad8cc; margin: 20px 0; font-family: monospace; }
+            .button { display: inline-block; padding: 12px 20px; background-color: #04b2be; color: #ffffff !important; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 20px; }
+            .footer { font-size: 14px; color: #888888; margin-top: 30px; }
+        </style>
+    </head>
+    <body>
+        <div class='email-container'>
+            <h1>" . str_replace('{first_name}', $student->first_name, $template['greeting']) . "</h1>
+            <p>{$template['intro']}</p>
+            
+            <div class='credentials'>
+                {$template['credentials_text']}<br><br>
+                Email: {$student->email}<br>
+                Password: {$new_password}
+            </div>
+            
+            <a href='{$login_url}' class='button'>{$template['button_text']}</a>
+            
+            <p class='footer'>{$template['footer']}</p>
+        </div>
+    </body>
+    </html>";
+
+        $headers = array('Content-Type: text/html; charset=UTF-8');
+        return wp_mail($student->email, $subject, $message, $headers);
+    }
     public function handle_toggle_student_status()
     {
         check_admin_referer('pilates_toggle_status', 'pilates_nonce');
@@ -464,7 +607,19 @@ class Pilates_Admin
         wp_redirect(admin_url('admin.php?page=pilates-students&message=status_updated'));
         exit;
     }
+    private function get_language_login_url($language)
+    {
+        if ($language === 'en' || !function_exists('pll_default_language')) {
+            return home_url('/pilates-login/');
+        }
 
+        $default_lang = pll_default_language();
+        if ($language === $default_lang) {
+            return home_url('/pilates-login/');
+        }
+
+        return home_url('/' . $language . '/pilates-login/');
+    }
     public function handle_delete_student()
     {
         check_admin_referer('pilates_delete_student', 'pilates_nonce');
@@ -522,11 +677,17 @@ class Pilates_Admin
             exit;
         }
 
-        // Generate password
-        $password = wp_generate_password(12, false);
+        // KORISTI STORED PASSWORD umesto generisanja novog
+        $password = $student->stored_password;
+
+        if (!$password) {
+            // Fallback ako nema stored password
+            $password = wp_generate_password(12, false);
+            $wpdb->update($table_name, array('stored_password' => $password), array('id' => $student_id));
+        }
 
         if (!$student->user_id) {
-            // Create WordPress user
+            // Create WordPress user (backup scenario)
             $user_data = array(
                 'user_login' => $student->email,
                 'user_email' => $student->email,
@@ -544,21 +705,19 @@ class Pilates_Admin
                 exit;
             }
 
-            // Update student record with user_id
             $wpdb->update($table_name, array('user_id' => $user_id, 'status' => 'active'), array('id' => $student_id));
 
-            // Add pilates_access capability
             $user = get_user_by('id', $user_id);
             if ($user) {
                 $user->add_cap('pilates_access');
             }
         } else {
-            // Reset password for existing user
+            // Setuj stored password u WP user
             wp_set_password($password, $student->user_id);
         }
 
-        // Send email
-        $sent = $this->send_welcome_email($student->email, $password, $student->first_name);
+        // Send email sa stored password
+        $sent = $this->send_welcome_email($student->email, $password, $student->first_name, $student->primary_language);
 
         if ($sent) {
             wp_redirect(admin_url('admin.php?page=pilates-students&message=credentials_sent'));
@@ -652,6 +811,15 @@ class Pilates_Admin
                         </td>
                     </tr>
                     <tr>
+                        <th><label for="student_password">Password</label></th>
+                        <td>
+                            <input type="password" id="student_password" name="student_password" class="regular-text">
+                            <button type="button" class="button" onclick="togglePassword('student_password')">Show</button>
+                            <button type="button" class="button" onclick="generatePassword('student_password')">Generate</button>
+                            <p class="description">Password for student login. Leave empty to auto-generate.</p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><label for="notes">Notes</label></th>
                         <td><textarea id="notes" name="notes" rows="4" class="large-text"></textarea></td>
                     </tr>
@@ -662,6 +830,30 @@ class Pilates_Admin
                 </p>
             </form>
         </div>
+        <script>
+            function togglePassword(fieldId) {
+                const field = document.getElementById(fieldId);
+                const button = event.target;
+
+                if (field.type === 'password') {
+                    field.type = 'text';
+                    button.textContent = 'Hide';
+                } else {
+                    field.type = 'password';
+                    button.textContent = 'Show';
+                }
+            }
+
+            function generatePassword(fieldId) {
+                const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+                let password = '';
+                for (let i = 0; i < 10; i++) {
+                    password += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                document.getElementById(fieldId).value = password;
+                document.getElementById(fieldId).type = 'text';
+            }
+        </script>
     <?php
     }
 
@@ -733,6 +925,16 @@ class Pilates_Admin
                             <p class="description">Leave empty for no expiry. Student will be automatically deactivated after this date.</p>
                         </td>
                     </tr>
+
+                    <tr>
+                        <th><label for="student_password">New Password</label></th>
+                        <td>
+                            <input type="password" id="student_password" name="student_password" class="regular-text">
+                            <button type="button" class="button" onclick="togglePassword('student_password')">Show</button>
+                            <button type="button" class="button" onclick="generatePassword('student_password')">Generate</button>
+                            <p class="description">Leave empty to keep current password unchanged.</p>
+                        </td>
+                    </tr>
                     <tr>
                         <th><label for="status">Status</label></th>
                         <td>
@@ -756,13 +958,39 @@ class Pilates_Admin
                 </p>
             </form>
         </div>
+        <script>
+            function togglePassword(fieldId) {
+                const field = document.getElementById(fieldId);
+                const button = event.target;
+
+                if (field.type === 'password') {
+                    field.type = 'text';
+                    button.textContent = 'Hide';
+                } else {
+                    field.type = 'password';
+                    button.textContent = 'Show';
+                }
+            }
+
+            function generatePassword(fieldId) {
+                const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+                let password = '';
+                for (let i = 0; i < 10; i++) {
+                    password += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                document.getElementById(fieldId).value = password;
+                document.getElementById(fieldId).type = 'text';
+            }
+        </script>
 <?php
     }
 
-    private function send_welcome_email($email, $password, $first_name)
+    private function send_welcome_email($email, $password, $first_name, $language = 'en')
     {
-        $subject = 'Welcome to Pilates Academy - Your Login Credentials';
-        $login_url = home_url('/pilates-login/');
+        $template = $this->get_email_templates($language, 'welcome');
+        $login_url = $this->get_language_login_url($language);
+
+        $subject = $template['subject'];
 
         $message = "
     <html>
@@ -819,9 +1047,9 @@ class Pilates_Admin
     </head>
     <body>
         <div class='email-container'>
-            <h1>Welcome to Pilates Academy, {$first_name}!</h1>
-            <p>We're excited to have you on board. Your account has been successfully created.</p>
-            <p>Here are your login details:</p>
+            <h1>" . str_replace('{first_name}', $first_name, $template['greeting']) . "</h1>
+            <p>{$template['intro']}</p>
+            <p>{$template['credentials_text']}</p>
 
             <div class='credentials'>
                 Email (Username): {$email}<br>
@@ -830,18 +1058,17 @@ class Pilates_Admin
             </div>
 
             <p>Click the button below to log in to your personal dashboard, where you can view your exercises and track your progress.</p>
-            <a href='{$login_url}' class='button'>Log In to Your Account</a>
+            <a href='{$login_url}' class='button'>{$template['button_text']}</a>
 
-            <p>If you have any questions or need help, feel free to reach out. We're here for you!</p>
+            <p>{$template['help_text']}</p>
 
-            <p class='footer'>Best regards,<br>Pilates Academy Team</p>
+            <p class='footer'>{$template['footer']}</p>
         </div>
     </body>
     </html>
     ";
 
         $headers = array('Content-Type: text/html; charset=UTF-8');
-
         return wp_mail($email, $subject, $message, $headers);
     }
 
