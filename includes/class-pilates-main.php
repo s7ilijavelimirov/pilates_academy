@@ -20,184 +20,117 @@ class Pilates_Main
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
         add_action('init', array($this, 'register_post_types_and_taxonomies'));
-        // add_action('wp_ajax_pilates_upload_avatar', array($this, 'handle_avatar_upload'));
-        // add_filter('wp_handle_upload_prefilter', array($this, 'validate_avatar_upload'));
+
+        // Polylang integration - ISPRAVLJEN HOOK
+        add_action('init', array($this, 'polylang_integration'), 20);
+
+        // DIREKTNO dodaj filter umesto preko polylang_integration
+        if (function_exists('pll_current_language')) {
+            add_filter('pll_the_language_link', array($this, 'filter_language_links'), 10, 2);
+        }
     }
 
+    public function polylang_integration()
+    {
+        if (!function_exists('pll_languages_list')) {
+            return;
+        }
 
-    // Pozovi ovu funkciju u dashboard.php za debug:
-    // Pilates_Main::debug_avatar_data($current_user->ID);
-    // public function handle_avatar_upload()
-    // {
-    //     error_log('=== AVATAR UPLOAD START ===');
+        // KRITIČNA ISPRAVKA: Dodaj rewrite rules za SVE jezike UKLJUČUJUĆI default
+        $languages = pll_languages_list();
+        $default_lang = pll_default_language();
 
-    //     if (!wp_verify_nonce($_POST['nonce'], 'pilates_avatar_nonce')) {
-    //         error_log('Nonce verification failed');
-    //         wp_send_json_error('Nonce verification failed');
-    //     }
+        foreach ($languages as $lang) {
+            // DODAJ RULES ZA SVE JEZIKE, ne samo non-default
+            if ($lang !== $default_lang) {
+                add_rewrite_rule(
+                    '^' . $lang . '/pilates-login/?$',
+                    'index.php?pilates_page=login&lang=' . $lang,
+                    'top'
+                );
+                add_rewrite_rule(
+                    '^' . $lang . '/pilates-dashboard/?(.*)$',
+                    'index.php?pilates_page=dashboard&lang=' . $lang . '&pilates_params=$matches[1]',
+                    'top'
+                );
+            }
+        }
 
-    //     if (!is_user_logged_in()) {
-    //         wp_send_json_error('Unauthorized');
-    //     }
+        add_rewrite_tag('%lang%', '([^&]+)');
+        add_rewrite_tag('%pilates_params%', '(.*)');
+    }
 
-    //     if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== 0) {
-    //         wp_send_json_error('No file uploaded');
-    //     }
+    public function filter_language_links($url, $slug)
+    {
+        // KLJUČNA ISPRAVKA: Bolje detektovanje Pilates stranica
+        global $wp_query;
 
-    //     $current_user = wp_get_current_user();
-    //     error_log("Uploading avatar for user: {$current_user->ID}");
+        // Proveri da li je ovo Pilates stranica na više načina
+        $is_pilates_page = (
+            get_query_var('pilates_page') ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-dashboard') !== false ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false ||
+            (isset($wp_query->query_vars['pilates_page']))
+        );
 
-    //     // Delete old avatar if exists
-    //     $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
-    //     if ($old_avatar_id) {
-    //         error_log("Deleting old avatar: {$old_avatar_id}");
-    //         wp_delete_attachment($old_avatar_id, true);
-    //     }
+        if (!$is_pilates_page) {
+            return $url;
+        }
 
-    //     require_once(ABSPATH . 'wp-admin/includes/file.php');
-    //     require_once(ABSPATH . 'wp-admin/includes/image.php');
+        $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
+        $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
+        $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
 
-    //     // Handle upload
-    //     $uploaded = wp_handle_upload($_FILES['avatar'], array('test_form' => false));
+        // Determine base path
+        $is_login = (
+            get_query_var('pilates_page') === 'login' ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false
+        );
 
-    //     if (isset($uploaded['error'])) {
-    //         error_log("Upload error: " . $uploaded['error']);
-    //         wp_send_json_error($uploaded['error']);
-    //     }
+        if ($is_login) {
+            $base_path = '/pilates-login/';
+        } else {
+            $base_path = '/pilates-dashboard/';
+        }
 
-    //     // Create attachment
-    //     $attachment_id = wp_insert_attachment(array(
-    //         'post_title' => 'Avatar - ' . $current_user->display_name,
-    //         'post_content' => '',
-    //         'post_status' => 'inherit',
-    //         'post_mime_type' => $uploaded['type']
-    //     ), $uploaded['file']);
+        // ISPRAVKA: Language prefix logic
+        if ($slug !== pll_default_language()) {
+            $new_url = home_url('/' . $slug . $base_path);
+        } else {
+            $new_url = home_url($base_path);
+        }
 
-    //     if (is_wp_error($attachment_id)) {
-    //         error_log("Attachment creation failed");
-    //         wp_send_json_error('Failed to create attachment');
-    //     }
+        // Add query parameters
+        $query_args = array();
 
-    //     error_log("Created attachment: {$attachment_id}");
+        if ($current_day) {
+            $query_args['day'] = $current_day;
+        }
 
-    //     // Generate metadata
-    //     $attach_data = wp_generate_attachment_metadata($attachment_id, $uploaded['file']);
-    //     wp_update_attachment_metadata($attachment_id, $attach_data);
+        if ($exercise_id && function_exists('pll_get_post')) {
+            // ISPRAVKA: Bolje handling translation
+            $translated_id = pll_get_post($exercise_id, $slug);
+            if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
+                $query_args['exercise'] = $translated_id;
+                error_log("Language switch: Exercise {$exercise_id} -> {$translated_id} for language {$slug}");
+            } else {
+                $query_args['exercise'] = $exercise_id;
+                error_log("Language switch: No translation found for exercise {$exercise_id} in {$slug}, keeping original");
+            }
+        }
 
-    //     // CRUCIAL: Force immediate save to user meta
-    //     delete_user_meta($current_user->ID, 'pilates_avatar'); // Clear first
-    //     $meta_result = add_user_meta($current_user->ID, 'pilates_avatar', $attachment_id, true);
+        if ($current_page && $current_page !== 'dashboard') {
+            $query_args['page'] = $current_page;
+        }
 
-    //     if (!$meta_result) {
-    //         // If add fails, try update
-    //         $meta_result = update_user_meta($current_user->ID, 'pilates_avatar', $attachment_id);
-    //     }
+        if (!empty($query_args)) {
+            $new_url = add_query_arg($query_args, $new_url);
+        }
 
-    //     error_log("User meta update result: " . ($meta_result ? 'SUCCESS' : 'FAILED'));
+        error_log("Language link generated: {$url} -> {$new_url}");
+        return $new_url;
+    }
 
-    //     // Update students table
-    //     global $wpdb;
-    //     $table_name = $wpdb->prefix . 'pilates_students';
-
-    //     // First check if student exists
-    //     $student_exists = $wpdb->get_var($wpdb->prepare(
-    //         "SELECT id FROM $table_name WHERE user_id = %d",
-    //         $current_user->ID
-    //     ));
-
-    //     if ($student_exists) {
-    //         $db_result = $wpdb->update(
-    //             $table_name,
-    //             array('avatar_id' => $attachment_id),
-    //             array('user_id' => $current_user->ID),
-    //             array('%d'),
-    //             array('%d')
-    //         );
-    //         error_log("Database update result: " . ($db_result !== false ? 'SUCCESS' : 'FAILED'));
-
-    //         if ($db_result === false) {
-    //             error_log("Database error: " . $wpdb->last_error);
-    //         }
-    //     } else {
-    //         error_log("Student record not found for user ID: " . $current_user->ID);
-    //     }
-
-    //     // Verify save immediately
-    //     $saved_avatar = get_user_meta($current_user->ID, 'pilates_avatar', true);
-    //     error_log("Verified saved avatar ID: {$saved_avatar}");
-
-    //     // Clear any caches
-    //     wp_cache_delete($current_user->ID, 'user_meta');
-
-    //     // Get fresh URL
-    //     $avatar_url = self::get_user_avatar_url($current_user->ID, 150);
-
-    //     error_log('=== AVATAR UPLOAD END ===');
-
-    //     wp_send_json_success(array(
-    //         'avatar_url' => $avatar_url,
-    //         'avatar_id' => $attachment_id,
-    //         'saved_id' => $saved_avatar,
-    //         'direct_url' => wp_get_attachment_url($attachment_id)
-    //     ));
-    // }
-
-    // public static function get_user_avatar_url($user_id, $size = 150)
-    // {
-    //     error_log("get_user_avatar_url called for user: {$user_id}");
-    //     // Force fresh data
-    //     wp_cache_delete($user_id, 'user_meta');
-
-    //     $avatar_id = get_user_meta($user_id, 'pilates_avatar', true);
-
-    //     error_log("get_user_avatar_url - User: {$user_id}, Avatar ID: {$avatar_id}");
-
-    //     if ($avatar_id) {
-    //         $avatar_url = wp_get_attachment_url($avatar_id);
-
-    //         if ($avatar_url) {
-    //             // Verify file exists
-    //             $file_path = get_attached_file($avatar_id);
-    //             if ($file_path && file_exists($file_path)) {
-    //                 // Strong cache busting
-    //                 $timestamp = filemtime($file_path);
-    //                 return $avatar_url . '?v=' . $timestamp . '&id=' . $avatar_id . '&t=' . time();
-    //             }
-    //         }
-
-    //         // If we get here, avatar is broken - clean it up
-    //         error_log("Cleaning up broken avatar {$avatar_id} for user {$user_id}");
-    //         delete_user_meta($user_id, 'pilates_avatar');
-
-    //         global $wpdb;
-    //         $table_name = $wpdb->prefix . 'pilates_students';
-    //         $wpdb->update(
-    //             $table_name,
-    //             array('avatar_id' => null),
-    //             array('user_id' => $user_id)
-    //         );
-    //     }
-
-    //     // Return default avatar
-    //     return get_avatar_url($user_id, array('size' => $size));
-    // }
-
-    // public function validate_avatar_upload($file)
-    // {
-    //     $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp');
-
-    //     // if (!in_array($file['type'], $allowed_types)) {
-    //     //     $file['error'] = 'Only image files allowed';
-    //     //     return $file;
-    //     // }
-
-    //     if ($file['size'] > 1048576) { // 1MB
-    //         $file['error'] = 'File too large (max 1MB)';
-    //         return $file;
-    //     }
-
-    //     return $file;
-    // }
     public function handle_subtitle_request()
     {
         if (isset($_GET['pilates_subtitle']) && isset($_GET['file_id'])) {
@@ -252,9 +185,10 @@ class Pilates_Main
     public function add_rewrite_rules()
     {
         add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
-        add_rewrite_rule('^pilates-dashboard/?$', 'index.php?pilates_page=dashboard', 'top');
+        add_rewrite_rule('^pilates-dashboard/?(.*)$', 'index.php?pilates_page=dashboard&pilates_params=$matches[1]', 'top');
 
         add_rewrite_tag('%pilates_page%', '([^&]+)');
+        add_rewrite_tag('%pilates_params%', '(.*)');
     }
 
     public function custom_template_loader($template)
@@ -262,18 +196,49 @@ class Pilates_Main
         $pilates_page = get_query_var('pilates_page');
 
         if ($pilates_page == 'login') {
+            $this->set_language_context();
             return PILATES_PLUGIN_PATH . 'public/templates/login.php';
         }
 
         if ($pilates_page == 'dashboard') {
             if (!is_user_logged_in() || !current_user_can('pilates_access')) {
-                wp_redirect(home_url('/pilates-login/'));
+                // Redirect to login with current language
+                $current_lang = function_exists('pll_current_language') ? pll_current_language() : 'en';
+                $login_url = get_pilates_login_url($current_lang);
+                wp_redirect($login_url);
                 exit;
             }
+
+            $this->set_language_context();
             return PILATES_PLUGIN_PATH . 'public/templates/dashboard.php';
         }
 
         return $template;
+    }
+
+    // ISPRAVKA: Bolja language context funkcija
+    private function set_language_context()
+    {
+        if (!function_exists('PLL') || !PLL()) {
+            return;
+        }
+
+        $lang = get_query_var('lang');
+
+        if ($lang && in_array($lang, pll_languages_list())) {
+            error_log("Setting language context to: " . $lang);
+
+            // Set Polylang current language - ISPRAVLJEN PRISTUP
+            $language_obj = PLL()->model->get_language($lang);
+            if ($language_obj) {
+                PLL()->curlang = $language_obj;
+
+                // Set WordPress locale
+                if ($language_obj->locale) {
+                    switch_to_locale($language_obj->locale);
+                }
+            }
+        }
     }
 
     public function track_student_login($user_login, $user)
@@ -295,6 +260,7 @@ class Pilates_Main
             );
         }
     }
+
     public function register_post_types_and_taxonomies()
     {
         // Register Exercise post type
@@ -315,7 +281,7 @@ class Pilates_Main
 
         $args = array(
             'labels' => $labels,
-            'public' => true, // mora biti true da bi Polylang video
+            'public' => true,
             'show_ui' => true,
             'show_in_menu' => true,
             'menu_position' => 31,
@@ -326,7 +292,7 @@ class Pilates_Main
             'rewrite' => true,
             'query_var' => true,
             'menu_icon' => 'dashicons-heart',
-            'show_in_rest' => true, // VAŽNO za Polylang i Gutenberg
+            'show_in_rest' => true,
         );
 
         register_post_type('pilates_exercise', $args);
@@ -354,7 +320,7 @@ class Pilates_Main
             'show_ui' => true,
             'show_admin_column' => true,
             'query_var' => true,
-            'public' => true, // Polylang zahteva
+            'public' => true,
             'show_in_menu' => true,
             'show_tagcloud' => false,
             'rewrite' => true,
@@ -394,7 +360,6 @@ class Pilates_Main
         ));
     }
 
-
     public function create_tables()
     {
         global $wpdb;
@@ -415,7 +380,7 @@ class Pilates_Main
         validity_date date NULL,
         status varchar(20) DEFAULT 'active',
         notes text,
-        avatar_id bigint(20) NULL,  -- Ovo je ključno za avatar
+        avatar_id bigint(20) NULL,
         last_login datetime NULL,
         login_count int DEFAULT 0,
         created_at datetime DEFAULT CURRENT_TIMESTAMP,

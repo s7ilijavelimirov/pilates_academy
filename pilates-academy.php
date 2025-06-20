@@ -24,7 +24,6 @@ define('PILATES_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('PILATES_VERSION', '1.0.0');
 
 // Plugin activation
-// Plugin activation
 register_activation_hook(__FILE__, 'pilates_activate');
 function pilates_activate()
 {
@@ -53,6 +52,7 @@ function pilates_activate()
     // Flush rewrite rules
     flush_rewrite_rules();
 }
+
 // Add settings link on plugin page
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'pilates_add_plugin_page_settings_link');
 function pilates_add_plugin_page_settings_link($links)
@@ -75,6 +75,7 @@ function pilates_plugin_row_meta($links, $file)
     }
     return $links;
 }
+
 // Plugin deactivation  
 register_deactivation_hook(__FILE__, 'pilates_deactivate');
 function pilates_deactivate()
@@ -90,14 +91,74 @@ function pilates_deactivate()
 
     flush_rewrite_rules();
 }
+
+// Polylang support - IMPROVED VERSION
 add_action('init', function () {
-    // Proveravamo da li je Polylang aktivan
+    // Load plugin textdomain FIRST
+    load_plugin_textdomain('pilates-academy', false, dirname(plugin_basename(__FILE__)) . '/languages');
+    add_filter('gettext', 'pilates_quick_translate', 10, 3);
+    function pilates_quick_translate($translated, $original, $domain)
+    {
+        if ($domain !== 'pilates-academy') {
+            return $translated;
+        }
+
+        $current_lang = function_exists('pll_current_language') ? pll_current_language() : 'en';
+
+        if ($current_lang === 'de') {
+            $translations = array(
+                'Welcome' => 'Willkommen',
+                'Dashboard' => 'Armaturenbrett',
+                'Home' => 'Startseite',
+                'My Profile' => 'Mein Profil',
+                'My Progress' => 'Mein Fortschritt',
+                'Settings' => 'Einstellungen',
+                'Choose Your Training Day' => 'Wählen Sie Ihren Trainingstag',
+                'Training' => 'Training',
+                'Day' => 'Tag',
+                'exercises' => 'Übungen',
+                'min' => 'Min',
+                'Exercise Preview' => 'Übung Vorschau',
+                'Back to' => 'Zurück zu',
+                'First Name' => 'Vorname',
+                'Last Name' => 'Nachname',
+                'Email Address' => 'E-Mail-Adresse',
+                'Phone Number' => 'Telefonnummer',
+                'Password' => 'Passwort',
+                'Primary Language' => 'Hauptsprache',
+                'Member Since' => 'Mitglied seit',
+                'Update Profile' => 'Profil aktualisieren',
+                'Cancel' => 'Abbrechen',
+                'Profile updated successfully!' => 'Profil erfolgreich aktualisiert!',
+                'Dark Mode' => 'Dunkler Modus',
+                'Light Mode' => 'Heller Modus',
+                'Enter your email' => 'Geben Sie Ihre E-Mail ein',
+                'Geben Sie Ihr Passwort ein' => 'Geben Sie Ihr Passwort ein',
+                'Logout' => 'Ausloggen',
+                'Sign In' => 'Anmelden',
+                'Pilates Academy. All rights reserved.' => 'Pilates Academy. Alle Rechte vorbehalten.',
+                'Student Member' => 'Studentisches Mitglied',
+                'Premium Training Platform' => 'Premium-Trainingsplattform',
+                'Welcome back! Please sign in to your account.' => 'Willkommen zurück! Bitte logge dich bei deinem Konto ein.',
+
+            );
+
+            if (isset($translations[$original])) {
+                return $translations[$original];
+            }
+        }
+
+        return $translated;
+    }
+    // Check if Polylang is active
     if (function_exists('pll_get_post_types')) {
+        // Register post types for translation
         add_filter('pll_get_post_types', function ($post_types) {
             $post_types['pilates_exercise'] = true;
             return $post_types;
         });
 
+        // Register taxonomies for translation
         add_filter('pll_get_taxonomies', function ($taxonomies) {
             $taxonomies['exercise_day'] = true;
             $taxonomies['exercise_position'] = true;
@@ -105,13 +166,186 @@ add_action('init', function () {
             return $taxonomies;
         });
     }
-});
+}, 5); // Priority 5 to run early
+// Auto-register strings for Polylang String Translation
+add_action('init', function () {
+    if (function_exists('pll_register_string')) {
 
+        // Dashboard strings
+        pll_register_string('Welcome', 'Welcome', 'pilates-academy');
+        pll_register_string('Dashboard', 'Dashboard', 'pilates-academy');
+        pll_register_string('Home', 'Home', 'pilates-academy');
+        pll_register_string('Choose Your Training Day', 'Choose Your Training Day', 'pilates-academy');
+        pll_register_string('Training', 'Training', 'pilates-academy');
+        pll_register_string('Day', 'Day', 'pilates-academy');
+        pll_register_string('exercises', 'exercises', 'pilates-academy');
+        pll_register_string('min', 'min', 'pilates-academy');
+        pll_register_string('Exercise Preview', 'Exercise Preview', 'pilates-academy');
+        pll_register_string('Back to', 'Back to', 'pilates-academy');
+        pll_register_string('No exercises available for', 'No exercises available for', 'pilates-academy');
+        pll_register_string('Please check back later or contact your instructor for more information.', 'Please check back later or contact your instructor for more information.', 'pilates-academy');
+
+        // Profile strings
+        pll_register_string('My Profile', 'My Profile', 'pilates-academy');
+        pll_register_string('Profile', 'Profile', 'pilates-academy');
+        pll_register_string('First Name', 'First Name', 'pilates-academy');
+        pll_register_string('Last Name', 'Last Name', 'pilates-academy');
+        pll_register_string('Email Address', 'Email Address', 'pilates-academy');
+        pll_register_string('Phone Number', 'Phone Number', 'pilates-academy');
+        pll_register_string('Primary Language', 'Primary Language', 'pilates-academy');
+        pll_register_string('Member Since', 'Member Since', 'pilates-academy');
+        pll_register_string('Update Profile', 'Update Profile', 'pilates-academy');
+        pll_register_string('Cancel', 'Cancel', 'pilates-academy');
+        pll_register_string('Profile updated successfully!', 'Profile updated successfully!', 'pilates-academy');
+        pll_register_string('English', 'English', 'pilates-academy');
+        pll_register_string('German', 'German', 'pilates-academy');
+        pll_register_string('Ukrainian', 'Ukrainian', 'pilates-academy');
+
+        // Progress strings
+        pll_register_string('My Progress', 'My Progress', 'pilates-academy');
+        pll_register_string('Progress', 'Progress', 'pilates-academy');
+        pll_register_string('Exercises Completed', 'Exercises Completed', 'pilates-academy');
+        pll_register_string('Days Completed', 'Days Completed', 'pilates-academy');
+        pll_register_string('Overall Progress', 'Overall Progress', 'pilates-academy');
+        pll_register_string('Total Training Time', 'Total Training Time', 'pilates-academy');
+        pll_register_string('Progress Tracking', 'Progress Tracking', 'pilates-academy');
+        pll_register_string('Advanced progress tracking functionality will be implemented soon. Here you will be able to:', 'Advanced progress tracking functionality will be implemented soon. Here you will be able to:', 'pilates-academy');
+        pll_register_string('View completed exercises with timestamps', 'View completed exercises with timestamps', 'pilates-academy');
+        pll_register_string('Track your daily and weekly progress', 'Track your daily and weekly progress', 'pilates-academy');
+        pll_register_string('See your detailed workout history', 'See your detailed workout history', 'pilates-academy');
+        pll_register_string('Monitor your improvement over time', 'Monitor your improvement over time', 'pilates-academy');
+        pll_register_string('Set and track personal goals', 'Set and track personal goals', 'pilates-academy');
+        pll_register_string('Earn achievement badges', 'Earn achievement badges', 'pilates-academy');
+
+        // Settings strings
+        pll_register_string('Settings', 'Settings', 'pilates-academy');
+        pll_register_string('Account Settings', 'Account Settings', 'pilates-academy');
+        pll_register_string('Manage your account preferences and settings.', 'Manage your account preferences and settings.', 'pilates-academy');
+        pll_register_string('Notification preferences', 'Notification preferences', 'pilates-academy');
+        pll_register_string('Dark mode toggle', 'Dark mode toggle', 'pilates-academy');
+        pll_register_string('Privacy settings', 'Privacy settings', 'pilates-academy');
+        pll_register_string('Mobile app synchronization', 'Mobile app synchronization', 'pilates-academy');
+        pll_register_string('Data export options', 'Data export options', 'pilates-academy');
+        pll_register_string('Account deletion', 'Account deletion', 'pilates-academy');
+        pll_register_string('Coming Soon', 'Coming Soon', 'pilates-academy');
+
+        // Sidebar strings
+        pll_register_string('Pilates Academy', 'Pilates Academy', 'pilates-academy');
+        pll_register_string('Premium Training Platform', 'Premium Training Platform', 'pilates-academy');
+        pll_register_string('Student Member', 'Student Member', 'pilates-academy');
+        pll_register_string('Logout', 'Logout', 'pilates-academy');
+        pll_register_string('Menu', 'Menu', 'pilates-academy');
+
+        // Theme strings
+        pll_register_string('Dark Mode', 'Dark Mode', 'pilates-academy');
+        pll_register_string('Light Mode', 'Light Mode', 'pilates-academy');
+
+        // Video strings
+        pll_register_string('Your browser does not support the video tag.', 'Your browser does not support the video tag.', 'pilates-academy');
+
+        // Login strings  
+        pll_register_string('Student record not found. Please contact support.', 'Student record not found. Please contact support.', 'pilates-academy');
+        pll_register_string('Your account has expired on %s. Please contact support to renew your membership.', 'Your account has expired on %s. Please contact support to renew your membership.', 'pilates-academy');
+        pll_register_string('Your account is currently inactive. Please contact support to activate your account.', 'Your account is currently inactive. Please contact support to activate your account.', 'pilates-academy');
+        pll_register_string('Invalid email or password.', 'Invalid email or password.', 'pilates-academy');
+        // Dodaj u auto-registraciju funkciju:
+        pll_register_string('Welcome back! Please sign in to your account.', 'Welcome back! Please sign in to your account.', 'pilates-academy');
+        pll_register_string('Password', 'Password', 'pilates-academy');
+        pll_register_string('Enter your email', 'Enter your email', 'pilates-academy');
+        pll_register_string('Enter your password', 'Enter your password', 'pilates-academy');
+        pll_register_string('Sign In', 'Sign In', 'pilates-academy');
+        pll_register_string('Pilates Academy. All rights reserved.', 'Pilates Academy. All rights reserved.', 'pilates-academy');
+
+        error_log('Polylang strings registered for pilates-academy');
+    }
+}, 20);
+// Helper function to get correct dashboard URL with language
+function get_pilates_dashboard_url($args = array(), $lang = null)
+{
+    if (!$lang && function_exists('pll_current_language')) {
+        $lang = pll_current_language();
+    }
+
+    $base_url = home_url('/pilates-dashboard/');
+
+    // Add language prefix if not default language
+    if ($lang && function_exists('pll_default_language') && $lang !== pll_default_language()) {
+        $base_url = home_url('/' . $lang . '/pilates-dashboard/');
+    }
+
+    if (!empty($args)) {
+        $base_url = add_query_arg($args, $base_url);
+    }
+
+    return $base_url;
+}
+
+// Helper function to get correct login URL with language
+function get_pilates_login_url($lang = null)
+{
+    if (!$lang && function_exists('pll_current_language')) {
+        $lang = pll_current_language();
+    }
+
+    $base_url = home_url('/pilates-login/');
+
+    // Add language prefix if not default language
+    if ($lang && function_exists('pll_default_language') && $lang !== pll_default_language()) {
+        $base_url = home_url('/' . $lang . '/pilates-login/');
+    }
+
+    return $base_url;
+}
 
 // Initialize plugin
 add_action('plugins_loaded', 'pilates_init');
 function pilates_init()
 {
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
-    Pilates_Main::get_instance(); // Koristi singleton umesto new
+    Pilates_Main::get_instance();
 }
+// Force flush rewrite rules when accessing Polylang pages - DEBUG
+add_action('wp_loaded', function () {
+    if (function_exists('pll_current_language')) {
+        // Check if we need to flush rules
+        $pilates_page = get_query_var('pilates_page');
+        $is_polylang_pilates = (
+            strpos($_SERVER['REQUEST_URI'], '/de/pilates-') !== false ||
+            strpos($_SERVER['REQUEST_URI'], '/uk/pilates-') !== false ||
+            $pilates_page
+        );
+
+        if ($is_polylang_pilates && !get_option('pilates_polylang_flushed_v2')) {
+            error_log("FORCE FLUSHING REWRITE RULES FOR POLYLANG");
+            flush_rewrite_rules(true);
+            update_option('pilates_polylang_flushed_v2', true);
+        }
+    }
+});
+
+// Parse query string parameters for language URLs
+add_action('parse_request', function ($wp) {
+    // Handle /de/pilates-dashboard/?day=1&exercise=123 format
+    if (isset($wp->query_vars['lang']) && isset($wp->query_vars['pilates_page'])) {
+        // Parse the pilates_params if they exist
+        if (isset($wp->query_vars['pilates_params']) && !empty($wp->query_vars['pilates_params'])) {
+            $params = $wp->query_vars['pilates_params'];
+
+            // Parse query string if it exists
+            if (strpos($params, '?') !== false) {
+                $query_string = parse_url($params, PHP_URL_QUERY);
+                if ($query_string) {
+                    parse_str($query_string, $parsed_params);
+                    foreach ($parsed_params as $key => $value) {
+                        $_GET[$key] = $value;
+                        $wp->query_vars[$key] = $value;
+                    }
+                }
+            }
+        }
+
+        error_log("Parsed Polylang request - Lang: " . $wp->query_vars['lang'] .
+            ", Page: " . $wp->query_vars['pilates_page'] .
+            ", GET params: " . print_r($_GET, true));
+    }
+});

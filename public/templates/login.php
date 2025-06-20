@@ -1,7 +1,13 @@
 <?php
-// Redirect if already logged in
+// DODAJ NA VRH login.php fajla
+
+// Get current language for Polylang
+$current_lang = function_exists('pll_current_language') ? pll_current_language() : 'en';
+
+// Redirect if already logged in - USE LANGUAGE-AWARE URL
 if (is_user_logged_in() && current_user_can('pilates_access')) {
-    wp_redirect(home_url('/pilates-dashboard/'));
+    $dashboard_url = get_pilates_dashboard_url(array(), $current_lang);
+    wp_redirect($dashboard_url);
     exit;
 }
 
@@ -23,17 +29,17 @@ if ($_POST && isset($_POST['pilates_login'])) {
             ));
 
             if (!$student) {
-                $error = 'Student record not found. Please contact support.';
+                $error = __('Student record not found. Please contact support.', 'pilates-academy');
             } else {
                 // Check if account has expired
                 if ($student->validity_date && strtotime($student->validity_date) < time()) {
                     $wpdb->update($table_name, array('status' => 'inactive'), array('id' => $student->id));
-                    $expired_date = date('M j, Y', strtotime($student->validity_date));
-                    $error = "Your account has expired on {$expired_date}. Please contact support to renew your membership.";
+                    $expired_date = date_i18n(get_option('date_format'), strtotime($student->validity_date));
+                    $error = sprintf(__('Your account has expired on %s. Please contact support to renew your membership.', 'pilates-academy'), $expired_date);
                 }
                 // Check if account is active
                 else if ($student->status !== 'active') {
-                    $error = 'Your account is currently inactive. Please contact support to activate your account.';
+                    $error = __('Your account is currently inactive. Please contact support to activate your account.', 'pilates-academy');
                 }
                 // Login successful
                 else {
@@ -50,18 +56,20 @@ if ($_POST && isset($_POST['pilates_login'])) {
                         array('id' => $student->id)
                     );
 
-                    wp_redirect(home_url('/pilates-dashboard/'));
+                    // Redirect to dashboard with current language
+                    $dashboard_url = get_pilates_dashboard_url(array(), $current_lang);
+                    wp_redirect($dashboard_url);
                     exit;
                 }
             }
         }
     } else {
-        $error = 'Invalid email or password.';
+        $error = __('Invalid email or password.', 'pilates-academy');
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?php echo esc_attr($current_lang); ?>">
 
 <head>
     <meta charset="UTF-8">
@@ -338,36 +346,35 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
         <div class="login-form">
             <div class="logo">
-                <h1>Pilates Academy</h1>
-                <p>Welcome back! Please sign in to your account.</p>
+                <h1><?php _e('Pilates Academy', 'pilates-academy'); ?></h1>
+                <p><?php _e('Welcome back! Please sign in to your account.', 'pilates-academy'); ?></p>
             </div>
 
             <?php if (isset($error) && !empty($error)): ?>
-
                 <div class="error"><?php echo esc_html($error); ?></div>
             <?php endif; ?>
 
             <form method="post">
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <label for="email"><?php _e('Email Address', 'pilates-academy'); ?></label>
                     <input type="email" id="email" name="email" required
                         value="<?php echo isset($_POST['email']) ? esc_attr($_POST['email']) : ''; ?>"
-                        placeholder="Enter your email">
+                        placeholder="<?php esc_attr_e('Enter your email', 'pilates-academy'); ?>">
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Password</label>
+                    <label for="password"><?php _e('Password', 'pilates-academy'); ?></label>
                     <input type="password" id="password" name="password" required
-                        placeholder="Enter your password">
+                        placeholder="<?php esc_attr_e('Enter your password', 'pilates-academy'); ?>">
                 </div>
 
                 <button type="submit" name="pilates_login" class="login-button">
-                    Sign In
+                    <?php _e('Sign In', 'pilates-academy'); ?>
                 </button>
             </form>
 
             <div class="footer">
-                <p>&copy; 2025 Pilates Academy. All rights reserved.</p>
+                <p>&copy; 2025 <?php _e('Pilates Academy. All rights reserved.', 'pilates-academy'); ?></p>
             </div>
         </div>
     </div>

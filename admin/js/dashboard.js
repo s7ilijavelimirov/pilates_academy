@@ -1,7 +1,7 @@
-console.log('Dashboard JS loaded');
+
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('Dashboard DOM loaded');
+
 
     // Dark Mode Toggle
     initDarkMode();
@@ -27,12 +27,39 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+document.addEventListener('DOMContentLoaded', function () {
+    const switcher = document.querySelector('.language-switcher');
+    const currentLang = switcher?.querySelector('.current-lang');
+
+    if (switcher && currentLang) {
+        currentLang.addEventListener('click', function (e) {
+            e.preventDefault();
+            switcher.classList.toggle('open');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!switcher.contains(e.target)) {
+                switcher.classList.remove('open');
+            }
+        });
+
+        // Osiguraj da current-lang bude prvi
+        const listItems = Array.from(switcher.querySelectorAll('li'));
+        const currentItem = switcher.querySelector('.current-lang');
+        if (currentItem) {
+            switcher.prepend(currentItem);
+        }
+    }
+});
+
+
+
 
 function initDarkMode() {
     const themeToggle = document.getElementById('theme-toggle');
     if (!themeToggle) return;
 
-    const currentTheme = localStorage.getItem('pilates-theme') || 'light';
+    const currentTheme = localStorage.getItem('pilates-theme') || 'dark';
 
     // Set initial theme
     document.documentElement.setAttribute('data-theme', currentTheme);

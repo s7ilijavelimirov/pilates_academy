@@ -110,6 +110,8 @@ html, body {
     height: 100vh;
     overflow-y: auto;
     z-index: 1000;
+	display: flex;
+    flex-direction: column;
 }
 
 .sidebar-header {
@@ -241,10 +243,11 @@ html, body {
 }
 
 .sidebar-footer {
-    position: absolute;
+margin-top:auto;
+/*     position: absolute;
     bottom: 0;
     left: 0;
-    right: 0;
+    right: 0; */
     padding: 25px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     text-align: center;
@@ -920,9 +923,102 @@ html, body {
 
 .detailed-instructions-content li, a {
     color: var(--pilates-text);
-      font-family: var(--pilates-font);
+    font-family: var(--pilates-font);
 
 }
+
+.language-switcher {
+    position: fixed;
+    top: 25px;
+    right: 180px;
+    z-index: 1001;
+    background: var(--pilates-card-bg);
+    border-radius: 10px;
+    border: 1px solid var(--pilates-border);
+    padding: 8px;
+    box-shadow: var(--pilates-shadow);
+    min-width: 140px;
+}
+
+/* Skrivamo sve jezike osim aktivnog */
+.language-switcher li {
+    display: none;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Prikazujemo samo aktivni jezik */
+.language-switcher .current-lang {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    opacity: 1;
+    transform: none;
+}
+
+/* Kada se otvori dropdown, prikaži sve jezike */
+.language-switcher.open li {
+    display: flex;
+    align-items: center;
+    opacity: 1;
+    transform: translateY(0);
+    margin-bottom: 5px;
+}
+
+.language-switcher.open .current-lang {
+    margin-bottom: 8px;
+}
+
+/* Linkovi unutar stavki */
+.language-switcher li a {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--pilates-text);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 50px;
+    transition: var(--pilates-transition);
+    width: 100%;
+}
+
+.language-switcher li a:hover {
+    background: var(--pilates-primary);
+    color: white;
+}
+
+/* Zastavice */
+.language-switcher img {
+    width: 20px;
+    height: auto;
+}
+
+/* Strelica pored aktivnog jezika */
+.language-switcher .current-lang a::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: auto;
+    background-color: var(--pilates-card-bg);
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='blue' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'><path fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0l-4.24-4.24a.75.75 0 01.02-1.06z' clip-rule='evenodd'/></svg>");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px 12px;
+    transition: transform 0.3s ease, background-color 0.3s ease, border 0.3s ease;
+}
+
+
+
+/* Kada je dropdown otvoren, rotiraj strelicu */
+.language-switcher.open .current-lang a::after {
+    transform: rotate(180deg);
+}
+
 
 /* No Exercises */
 .no-exercises {
