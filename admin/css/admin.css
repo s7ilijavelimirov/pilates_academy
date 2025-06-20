@@ -22,7 +22,39 @@
     margin: 16px 0;
     border-radius: 3px;
 }
+/* Global Header */
+.global-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 20px 0;
+    margin-bottom: 25px;
+}
 
+.global-header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Uprosti content-header - ukloni flex layout */
+.content-header {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 2px solid var(--pilates-border);
+}
+
+/* Mobile responsive za global header */
+@media (max-width: 768px) {
+    .global-header {
+        padding: 15px 0;
+        margin-bottom: 20px;
+    }
+    
+    .global-header-right {
+        gap: 12px;
+    }
+}
 .pilates-dashboard {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

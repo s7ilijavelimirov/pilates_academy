@@ -112,32 +112,35 @@ function get_translated_dashboard_url($args = array())
 </head>
 
 <body>
-    <button id="theme-toggle" class="pilates-theme-toggle">
-        <span class="icon">🌙</span>
-        <span class="text"><?php echo pll_text('Dark Mode'); ?></span>
-    </button>
-
-    <!-- Language Switcher -->
-    <div class="language-switcher">
-        <?php
-        if (function_exists('pll_the_languages')) {
-            pll_the_languages(array(
-                'show_flags' => 1,
-                'show_names' => 1,
-                'hide_current' => 0,
-                'dropdown' => 0
-            ));
-        }
-        ?>
-    </div>
-
     <div class="dashboard-container">
         <!-- Include Sidebar -->
         <?php include PILATES_PLUGIN_PATH . 'public/templates/sidebar.php'; ?>
 
         <!-- Main Content -->
         <div class="main-content">
+            <div class="global-header">
+                <div class="global-header-right">
+                    <!-- Language Switcher -->
+                    <div class="language-switcher">
+                        <?php
+                        if (function_exists('pll_the_languages')) {
+                            pll_the_languages(array(
+                                'show_flags' => 1,
+                                'show_names' => 1,
+                                'hide_current' => 0,
+                                'dropdown' => 0
+                            ));
+                        }
+                        ?>
+                    </div>
 
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="pilates-theme-toggle">
+                        <span class="icon">🌙</span>
+                        <span class="text"><?php echo pll_text('Dark Mode'); ?></span>
+                    </button>
+                </div>
+            </div>
             <?php if ($current_page === 'profile'): ?>
                 <!-- Profile Page -->
                 <div class="content-header">

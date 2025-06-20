@@ -1,6 +1,12 @@
 <?php
 // DODAJ NA VRH login.php fajla
 
+// Helper function for translations
+function pll_text($string)
+{
+    return function_exists('pll__') ? pll__($string) : __($string, 'pilates-academy');
+}
+
 // Get current language for Polylang
 $current_lang = function_exists('pll_current_language') ? pll_current_language() : 'en';
 
@@ -29,17 +35,17 @@ if ($_POST && isset($_POST['pilates_login'])) {
             ));
 
             if (!$student) {
-                $error = __('Student record not found. Please contact support.', 'pilates-academy');
+                $error = pll_text('Student record not found. Please contact support.');
             } else {
                 // Check if account has expired
                 if ($student->validity_date && strtotime($student->validity_date) < time()) {
                     $wpdb->update($table_name, array('status' => 'inactive'), array('id' => $student->id));
                     $expired_date = date_i18n(get_option('date_format'), strtotime($student->validity_date));
-                    $error = sprintf(__('Your account has expired on %s. Please contact support to renew your membership.', 'pilates-academy'), $expired_date);
+                    $error = sprintf(pll_text('Your account has expired on %s. Please contact support to renew your membership.'), $expired_date);
                 }
                 // Check if account is active
                 else if ($student->status !== 'active') {
-                    $error = __('Your account is currently inactive. Please contact support to activate your account.', 'pilates-academy');
+                    $error = pll_text('Your account is currently inactive. Please contact support to activate your account.');
                 }
                 // Login successful
                 else {
@@ -64,7 +70,7 @@ if ($_POST && isset($_POST['pilates_login'])) {
             }
         }
     } else {
-        $error = __('Invalid email or password.', 'pilates-academy');
+        $error = pll_text('Invalid email or password.');
     }
 }
 ?>
@@ -346,8 +352,8 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
         <div class="login-form">
             <div class="logo">
-                <h1><?php _e('Pilates Academy', 'pilates-academy'); ?></h1>
-                <p><?php _e('Welcome back! Please sign in to your account.', 'pilates-academy'); ?></p>
+                <h1><?php echo pll_text('Pilates Academy'); ?></h1>
+                <p><?php echo pll_text('Welcome back! Please sign in to your account.'); ?></p>
             </div>
 
             <?php if (isset($error) && !empty($error)): ?>
@@ -356,25 +362,25 @@ if ($_POST && isset($_POST['pilates_login'])) {
 
             <form method="post">
                 <div class="form-group">
-                    <label for="email"><?php _e('Email Address', 'pilates-academy'); ?></label>
+                    <label for="email"><?php echo pll_text('Email Address'); ?></label>
                     <input type="email" id="email" name="email" required
                         value="<?php echo isset($_POST['email']) ? esc_attr($_POST['email']) : ''; ?>"
-                        placeholder="<?php esc_attr_e('Enter your email', 'pilates-academy'); ?>">
+                        placeholder="<?php echo esc_attr(pll_text('Enter your email')); ?>">
                 </div>
 
                 <div class="form-group">
-                    <label for="password"><?php _e('Password', 'pilates-academy'); ?></label>
+                    <label for="password"><?php echo pll_text('Password'); ?></label>
                     <input type="password" id="password" name="password" required
-                        placeholder="<?php esc_attr_e('Enter your password', 'pilates-academy'); ?>">
+                        placeholder="<?php echo esc_attr(pll_text('Enter your password')); ?>">
                 </div>
 
                 <button type="submit" name="pilates_login" class="login-button">
-                    <?php _e('Sign In', 'pilates-academy'); ?>
+                    <?php echo pll_text('Sign In'); ?>
                 </button>
             </form>
 
             <div class="footer">
-                <p>&copy; 2025 <?php _e('Pilates Academy. All rights reserved.', 'pilates-academy'); ?></p>
+                <p>&copy; 2025 <?php echo pll_text('Pilates Academy. All rights reserved.'); ?></p>
             </div>
         </div>
     </div>

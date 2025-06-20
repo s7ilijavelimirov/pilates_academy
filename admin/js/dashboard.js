@@ -87,10 +87,12 @@ function initDarkMode() {
 
         if (theme === 'dark') {
             icon.textContent = '☀️';
-            text.textContent = 'Light Mode';
+            // KORISTI pll_text funkciju iz PHP-a
+            text.textContent = document.documentElement.getAttribute('data-light-text') || 'Light Mode';
         } else {
             icon.textContent = '🌙';
-            text.textContent = 'Dark Mode';
+            // KORISTI pll_text funkciju iz PHP-a  
+            text.textContent = document.documentElement.getAttribute('data-dark-text') || 'Dark Mode';
         }
     }
 }
