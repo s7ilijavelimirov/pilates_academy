@@ -7,6 +7,12 @@ $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : 'das
 // Get current language
 $current_lang = function_exists('pll_current_language') ? pll_current_language() : 'en';
 
+// Helper function for translations
+function pll_text($string)
+{
+    return function_exists('pll__') ? pll__($string) : __($string, 'pilates-academy');
+}
+
 // DEBUG: SADA POSLE DEFINISANJA VARIJABLI
 if (function_exists('pll_current_language')) {
     error_log("=== DASHBOARD POLYLANG DEBUG ===");
@@ -87,7 +93,7 @@ if ($_POST && isset($_POST['update_profile'])) {
     $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $current_user->ID));
     $current_user = wp_get_current_user();
 
-    $success_message = __('Profile updated successfully!', 'pilates-academy');
+    $success_message = pll_text('Profile updated successfully!');
 }
 
 function get_translated_dashboard_url($args = array())
@@ -101,14 +107,14 @@ function get_translated_dashboard_url($args = array())
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php _e('Pilates Academy - Dashboard', 'pilates-academy'); ?></title>
+    <title><?php echo pll_text('Pilates Academy - Dashboard'); ?></title>
     <link rel="stylesheet" href="<?php echo PILATES_PLUGIN_URL . 'admin/css/dashboard.css'; ?>">
 </head>
 
 <body>
     <button id="theme-toggle" class="pilates-theme-toggle">
         <span class="icon">🌙</span>
-        <span class="text"><?php _e('Dark Mode', 'pilates-academy'); ?></span>
+        <span class="text"><?php echo pll_text('Dark Mode'); ?></span>
     </button>
 
     <!-- Language Switcher -->
@@ -135,9 +141,9 @@ function get_translated_dashboard_url($args = array())
             <?php if ($current_page === 'profile'): ?>
                 <!-- Profile Page -->
                 <div class="content-header">
-                    <h1 class="content-title"><?php _e('My Profile', 'pilates-academy'); ?></h1>
+                    <h1 class="content-title"><?php echo pll_text('My Profile'); ?></h1>
                     <div class="breadcrumb">
-                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php _e('Dashboard', 'pilates-academy'); ?></a> / <?php _e('Profile', 'pilates-academy'); ?>
+                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Profile'); ?>
                     </div>
                 </div>
 
@@ -161,12 +167,12 @@ function get_translated_dashboard_url($args = array())
                         <form method="post" enctype="multipart/form-data" class="profile-form">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="first_name"><?php _e('First Name', 'pilates-academy'); ?> *</label>
+                                    <label for="first_name"><?php echo pll_text('First Name'); ?> *</label>
                                     <input type="text" id="first_name" name="first_name"
                                         value="<?php echo esc_attr($current_user->first_name); ?>" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="last_name"><?php _e('Last Name', 'pilates-academy'); ?> *</label>
+                                    <label for="last_name"><?php echo pll_text('Last Name'); ?> *</label>
                                     <input type="text" id="last_name" name="last_name"
                                         value="<?php echo esc_attr($current_user->last_name); ?>" required>
                                 </div>
@@ -174,12 +180,12 @@ function get_translated_dashboard_url($args = array())
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="email"><?php _e('Email Address', 'pilates-academy'); ?></label>
+                                    <label for="email"><?php echo pll_text('Email Address'); ?></label>
                                     <input type="email" id="email" name="email"
                                         value="<?php echo esc_attr($current_user->user_email); ?>" disabled>
                                 </div>
                                 <div class="form-group">
-                                    <label for="phone"><?php _e('Phone Number', 'pilates-academy'); ?></label>
+                                    <label for="phone"><?php echo pll_text('Phone Number'); ?></label>
                                     <input type="text" id="phone" name="phone"
                                         value="<?php echo esc_attr($student->phone ?? ''); ?>">
                                 </div>
@@ -187,22 +193,22 @@ function get_translated_dashboard_url($args = array())
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="primary_language"><?php _e('Primary Language', 'pilates-academy'); ?></label>
+                                    <label for="primary_language"><?php echo pll_text('Primary Language'); ?></label>
                                     <select id="primary_language" name="primary_language">
-                                        <option value="en" <?php selected($student->primary_language ?? 'en', 'en'); ?>>🇺🇸 <?php _e('English', 'pilates-academy'); ?></option>
-                                        <option value="de" <?php selected($student->primary_language ?? 'en', 'de'); ?>>🇩🇪 <?php _e('German', 'pilates-academy'); ?></option>
-                                        <option value="uk" <?php selected($student->primary_language ?? 'en', 'uk'); ?>>🇺🇦 <?php _e('Ukrainian', 'pilates-academy'); ?></option>
+                                        <option value="en" <?php selected($student->primary_language ?? 'en', 'en'); ?>>🇺🇸 <?php echo pll_text('English'); ?></option>
+                                        <option value="de" <?php selected($student->primary_language ?? 'en', 'de'); ?>>🇩🇪 <?php echo pll_text('German'); ?></option>
+                                        <option value="uk" <?php selected($student->primary_language ?? 'en', 'uk'); ?>>🇺🇦 <?php echo pll_text('Ukrainian'); ?></option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label for="member_since"><?php _e('Member Since', 'pilates-academy'); ?></label>
+                                    <label for="member_since"><?php echo pll_text('Member Since'); ?></label>
                                     <input type="text" value="<?php echo date_i18n('F Y', strtotime($student->date_joined ?? $current_user->user_registered)); ?>" disabled>
                                 </div>
                             </div>
 
                             <div style="margin-top: 30px;">
-                                <button type="submit" name="update_profile" class="btn btn-primary">💾 <?php _e('Update Profile', 'pilates-academy'); ?></button>
-                                <a href="<?php echo get_translated_dashboard_url(); ?>" class="btn btn-secondary"><?php _e('Cancel', 'pilates-academy'); ?></a>
+                                <button type="submit" name="update_profile" class="btn btn-primary">💾 <?php echo pll_text('Update Profile'); ?></button>
+                                <a href="<?php echo get_translated_dashboard_url(); ?>" class="btn btn-secondary"><?php echo pll_text('Cancel'); ?></a>
                             </div>
                         </form>
                     </div>
@@ -211,9 +217,9 @@ function get_translated_dashboard_url($args = array())
             <?php elseif ($current_page === 'progress'): ?>
                 <!-- Progress Page -->
                 <div class="content-header">
-                    <h1 class="content-title"><?php _e('My Progress', 'pilates-academy'); ?></h1>
+                    <h1 class="content-title"><?php echo pll_text('My Progress'); ?></h1>
                     <div class="breadcrumb">
-                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php _e('Dashboard', 'pilates-academy'); ?></a> / <?php _e('Progress', 'pilates-academy'); ?>
+                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Progress'); ?>
                     </div>
                 </div>
 
@@ -221,32 +227,32 @@ function get_translated_dashboard_url($args = array())
                     <div class="progress-stats">
                         <div class="stat-card">
                             <div class="stat-number">42</div>
-                            <div class="stat-label"><?php _e('Exercises Completed', 'pilates-academy'); ?></div>
+                            <div class="stat-label"><?php echo pll_text('Exercises Completed'); ?></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number">7</div>
-                            <div class="stat-label"><?php _e('Days Completed', 'pilates-academy'); ?></div>
+                            <div class="stat-label"><?php echo pll_text('Days Completed'); ?></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number">85%</div>
-                            <div class="stat-label"><?php _e('Overall Progress', 'pilates-academy'); ?></div>
+                            <div class="stat-label"><?php echo pll_text('Overall Progress'); ?></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-number">12h</div>
-                            <div class="stat-label"><?php _e('Total Training Time', 'pilates-academy'); ?></div>
+                            <div class="stat-label"><?php echo pll_text('Total Training Time'); ?></div>
                         </div>
                     </div>
 
                     <div class="profile-section">
-                        <h3>📊 <?php _e('Progress Tracking', 'pilates-academy'); ?></h3>
-                        <p style="margin-bottom: 20px;"><?php _e('Advanced progress tracking functionality will be implemented soon. Here you will be able to:', 'pilates-academy'); ?></p>
+                        <h3>📊 <?php echo pll_text('Progress Tracking'); ?></h3>
+                        <p style="margin-bottom: 20px;"><?php echo pll_text('Advanced progress tracking functionality will be implemented soon. Here you will be able to:'); ?></p>
                         <ul style="margin-left: 20px; color: #666; line-height: 1.8;">
-                            <li>✅ <?php _e('View completed exercises with timestamps', 'pilates-academy'); ?></li>
-                            <li>📈 <?php _e('Track your daily and weekly progress', 'pilates-academy'); ?></li>
-                            <li>📅 <?php _e('See your detailed workout history', 'pilates-academy'); ?></li>
-                            <li>📊 <?php _e('Monitor your improvement over time', 'pilates-academy'); ?></li>
-                            <li>🎯 <?php _e('Set and track personal goals', 'pilates-academy'); ?></li>
-                            <li>🏆 <?php _e('Earn achievement badges', 'pilates-academy'); ?></li>
+                            <li>✅ <?php echo pll_text('View completed exercises with timestamps'); ?></li>
+                            <li>📈 <?php echo pll_text('Track your daily and weekly progress'); ?></li>
+                            <li>📅 <?php echo pll_text('See your detailed workout history'); ?></li>
+                            <li>📊 <?php echo pll_text('Monitor your improvement over time'); ?></li>
+                            <li>🎯 <?php echo pll_text('Set and track personal goals'); ?></li>
+                            <li>🏆 <?php echo pll_text('Earn achievement badges'); ?></li>
                         </ul>
                     </div>
                 </div>
@@ -254,26 +260,26 @@ function get_translated_dashboard_url($args = array())
             <?php elseif ($current_page === 'settings'): ?>
                 <!-- Settings Page -->
                 <div class="content-header">
-                    <h1 class="content-title"><?php _e('Settings', 'pilates-academy'); ?></h1>
+                    <h1 class="content-title"><?php echo pll_text('Settings'); ?></h1>
                     <div class="breadcrumb">
-                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php _e('Dashboard', 'pilates-academy'); ?></a> / <?php _e('Settings', 'pilates-academy'); ?>
+                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Settings'); ?>
                     </div>
                 </div>
 
                 <div class="content-body">
                     <div class="profile-section">
-                        <h3>⚙️ <?php _e('Account Settings', 'pilates-academy'); ?></h3>
-                        <p style="margin-bottom: 20px;"><?php _e('Manage your account preferences and settings.', 'pilates-academy'); ?></p>
+                        <h3>⚙️ <?php echo pll_text('Account Settings'); ?></h3>
+                        <p style="margin-bottom: 20px;"><?php echo pll_text('Manage your account preferences and settings.'); ?></p>
                         <ul style="margin-left: 20px; color: #666; line-height: 1.8;">
-                            <li>🔔 <?php _e('Notification preferences', 'pilates-academy'); ?></li>
-                            <li>🌙 <?php _e('Dark mode toggle', 'pilates-academy'); ?></li>
-                            <li>🔒 <?php _e('Privacy settings', 'pilates-academy'); ?></li>
-                            <li>📱 <?php _e('Mobile app synchronization', 'pilates-academy'); ?></li>
-                            <li>💾 <?php _e('Data export options', 'pilates-academy'); ?></li>
-                            <li>🗑️ <?php _e('Account deletion', 'pilates-academy'); ?></li>
+                            <li>🔔 <?php echo pll_text('Notification preferences'); ?></li>
+                            <li>🌙 <?php echo pll_text('Dark mode toggle'); ?></li>
+                            <li>🔒 <?php echo pll_text('Privacy settings'); ?></li>
+                            <li>📱 <?php echo pll_text('Mobile app synchronization'); ?></li>
+                            <li>💾 <?php echo pll_text('Data export options'); ?></li>
+                            <li>🗑️ <?php echo pll_text('Account deletion'); ?></li>
                         </ul>
                         <div style="margin-top: 25px;">
-                            <button class="btn btn-secondary"><?php _e('Coming Soon', 'pilates-academy'); ?></button>
+                            <button class="btn btn-secondary"><?php echo pll_text('Coming Soon'); ?></button>
                         </div>
                     </div>
                 </div>
@@ -302,7 +308,7 @@ function get_translated_dashboard_url($args = array())
                     <div class="content-header">
                         <h1 class="content-title"><?php echo esc_html($exercise->post_title); ?></h1>
                         <div class="breadcrumb">
-                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php _e('Dashboard', 'pilates-academy'); ?></a> /
+                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
                             <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>">
                                 <?php
                                 $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
@@ -312,7 +318,7 @@ function get_translated_dashboard_url($args = array())
                                         $day_term = get_term($translated_term_id);
                                     }
                                 }
-                                echo $day_term ? esc_html($day_term->name) : __('Day', 'pilates-academy') . ' ' . $current_day;
+                                echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
                                 ?>
                             </a> /
                             <?php
@@ -340,7 +346,7 @@ function get_translated_dashboard_url($args = array())
                                 <?php endif; ?>
 
                                 <?php if ($duration): ?>
-                                    <span class="meta-item">🕐 <?php echo $duration; ?> <?php _e('min', 'pilates-academy'); ?></span>
+                                    <span class="meta-item">🕐 <?php echo $duration; ?> <?php echo pll_text('min'); ?></span>
                                 <?php endif; ?>
 
                                 <?php if ($exercise_positions && !is_wp_error($exercise_positions)): ?>
@@ -348,7 +354,7 @@ function get_translated_dashboard_url($args = array())
                                 <?php endif; ?>
 
                                 <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="back-btn">
-                                    ← <?php _e('Back to', 'pilates-academy'); ?> <?php echo $day_term ? esc_html($day_term->name) : __('Day', 'pilates-academy') . ' ' . $current_day; ?>
+                                    ← <?php echo pll_text('Back to'); ?> <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day; ?>
                                 </a>
                             </div>
                         </div>
@@ -383,7 +389,7 @@ function get_translated_dashboard_url($args = array())
                                                             <?php endforeach; ?>
                                                         <?php endif; ?>
 
-                                                        <?php _e('Your browser does not support the video tag.', 'pilates-academy'); ?>
+                                                        <?php echo pll_text('Your browser does not support the video tag.'); ?>
                                                     </video>
                                                 </div>
                                             </div>
@@ -408,13 +414,13 @@ function get_translated_dashboard_url($args = array())
             <?php else: ?>
                 <!-- Dashboard Home -->
                 <div class="content-header">
-                    <h1 class="content-title"><?php _e('Welcome', 'pilates-academy'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
-                    <div class="breadcrumb"><?php _e('Dashboard', 'pilates-academy'); ?> / <?php _e('Home', 'pilates-academy'); ?></div>
+                    <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
+                    <div class="breadcrumb"><?php echo pll_text('Dashboard'); ?> / <?php echo pll_text('Home'); ?></div>
                 </div>
 
                 <div class="content-body">
                     <div class="days-navigation">
-                        <h3 class="days-nav-title">🗓️ <?php _e('Choose Your Training Day', 'pilates-academy'); ?></h3>
+                        <h3 class="days-nav-title">🗓️ <?php echo pll_text('Choose Your Training Day'); ?></h3>
                         <div class="days-nav">
                             <?php for ($i = 1; $i <= 10; $i++): ?>
                                 <a href="<?php echo get_translated_dashboard_url(array('day' => $i)); ?>"
@@ -428,7 +434,7 @@ function get_translated_dashboard_url($args = array())
                                             $day_term = get_term($translated_term_id);
                                         }
                                     }
-                                    echo $day_term ? esc_html($day_term->name) : __('Day', 'pilates-academy') . ' ' . $i;
+                                    echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $i;
                                     ?>
                                 </a>
                             <?php endfor; ?>
@@ -449,10 +455,10 @@ function get_translated_dashboard_url($args = array())
                                 }
                             }
                         }
-                        $day_title = $day_term ? $day_term->name : __('Day', 'pilates-academy') . ' ' . $current_day;
+                        $day_title = $day_term ? $day_term->name : pll_text('Day') . ' ' . $current_day;
                         ?>
 
-                        <h2 class="section-title"><?php echo esc_html($day_title); ?> <?php _e('Training', 'pilates-academy'); ?></h2>
+                        <h2 class="section-title"><?php echo esc_html($day_title); ?> <?php echo pll_text('Training'); ?></h2>
 
                         <?php
                         // Get exercises for current day
@@ -518,7 +524,7 @@ function get_translated_dashboard_url($args = array())
                                         <h3 class="position-title">
                                             <span class="position-icon">🏋️</span>
                                             <?php echo esc_html($position->name); ?>
-                                            <span class="exercise-count">(<?php echo count($position_exercises); ?> <?php _e('exercises', 'pilates-academy'); ?>)</span>
+                                            <span class="exercise-count">(<?php echo count($position_exercises); ?> <?php echo pll_text('exercises'); ?>)</span>
                                         </h3>
 
                                         <?php if ($position->description): ?>
@@ -536,7 +542,7 @@ function get_translated_dashboard_url($args = array())
                                                 <div class="exercise-card" onclick="window.location.href='<?php echo get_translated_dashboard_url(array('day' => $current_day, 'exercise' => $exercise->ID)); ?>'">
                                                     <div class="exercise-image" <?php if ($featured_image): ?>style="background-image: url('<?php echo $featured_image; ?>')" <?php endif; ?>>
                                                         <?php if (!$featured_image): ?>
-                                                            🎯 <?php _e('Exercise Preview', 'pilates-academy'); ?>
+                                                            🎯 <?php echo pll_text('Exercise Preview'); ?>
                                                         <?php endif; ?>
                                                     </div>
 
@@ -549,7 +555,7 @@ function get_translated_dashboard_url($args = array())
                                                             <?php endif; ?>
 
                                                             <?php if ($duration): ?>
-                                                                <span class="meta-tag">🕐 <?php echo $duration; ?><?php _e('min', 'pilates-academy'); ?></span>
+                                                                <span class="meta-tag">🕐 <?php echo $duration; ?><?php echo pll_text('min'); ?></span>
                                                             <?php endif; ?>
                                                         </div>
 
@@ -569,8 +575,8 @@ function get_translated_dashboard_url($args = array())
                         else:
                             ?>
                             <div class="no-exercises">
-                                <h3>🚧 <?php _e('No exercises available for', 'pilates-academy'); ?> <?php echo esc_html($day_title); ?></h3>
-                                <p><?php _e('Please check back later or contact your instructor for more information.', 'pilates-academy'); ?></p>
+                                <h3>🚧 <?php echo pll_text('No exercises available for'); ?> <?php echo esc_html($day_title); ?></h3>
+                                <p><?php echo pll_text('Please check back later or contact your instructor for more information.'); ?></p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -578,10 +584,6 @@ function get_translated_dashboard_url($args = array())
             <?php endif; ?>
         </div>
     </div>
-
-    <script>
-
-    </script>
     <script src="<?php echo PILATES_PLUGIN_URL . 'admin/js/dashboard.js'; ?>"></script>
 </body>
 

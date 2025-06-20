@@ -30,34 +30,34 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
 ?>
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <div class="logo"><?php _e('Pilates Academy', 'pilates-academy'); ?></div>
-        <div class="logo-subtitle"><?php _e('Premium Training Platform', 'pilates-academy'); ?></div>
+        <div class="logo"><?php echo pll_text('Pilates Academy'); ?></div>
+        <div class="logo-subtitle"><?php echo pll_text('Premium Training Platform'); ?></div>
     </div>
 
     <div class="user-profile">
         <img src="<?php echo esc_url($avatar_url); ?>"
-            alt="<?php _e('Profile', 'pilates-academy'); ?>"
+            alt="<?php echo pll_text('Profile'); ?>"
             class="user-avatar skip-lazy no-lazyload">
         <div class="user-name"><?php echo esc_html($current_user->first_name . ' ' . $current_user->last_name); ?></div>
-        <div class="user-role"><?php _e('Student Member', 'pilates-academy'); ?></div>
+        <div class="user-role"><?php echo pll_text('Student Member'); ?></div>
     </div>
 
     <nav class="sidebar-nav">
         <a href="<?php echo get_pilates_dashboard_url(); ?>" class="nav-item <?php echo ($current_page === 'dashboard') ? 'active' : ''; ?>">
-            <span class="nav-icon">🏠</span> <?php _e('Dashboard', 'pilates-academy'); ?>
+            <span class="nav-icon">🏠</span> <?php echo pll_text('Dashboard'); ?>
         </a>
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'profile')); ?>" class="nav-item <?php echo ($current_page === 'profile') ? 'active' : ''; ?>">
-            <span class="nav-icon">👤</span> <?php _e('My Profile', 'pilates-academy'); ?>
+            <span class="nav-icon">👤</span> <?php echo pll_text('My Profile'); ?>
         </a>
-        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'progress')); ?>" class="nav-item <?php echo ($current_page === 'progress') ? 'active' : ''; ?>">
-            <span class="nav-icon">📊</span> <?php _e('My Progress', 'pilates-academy'); ?>
+        <a style="display:none" href="<?php echo get_pilates_dashboard_url(array('page' => 'progress')); ?>" class="nav-item <?php echo ($current_page === 'progress') ? 'active' : ''; ?>">
+            <span class="nav-icon">📊</span> <?php echo pll_text('My Progress'); ?>
         </a>
-        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'settings')); ?>" class="nav-item <?php echo ($current_page === 'settings') ? 'active' : ''; ?>">
-            <span class="nav-icon">⚙️</span> <?php _e('Settings', 'pilates-academy'); ?>
+        <a style="display:none" href="<?php echo get_pilates_dashboard_url(array('page' => 'settings')); ?>" class="nav-item <?php echo ($current_page === 'settings') ? 'active' : ''; ?>">
+            <span class="nav-icon">⚙️</span> <?php echo pll_text('Settings'); ?>
         </a>
         <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.1);"></div>
         <a href="<?php echo wp_logout_url(get_pilates_login_url($current_lang)); ?>" class="nav-item">
-            <span class="nav-icon">🚪</span> <?php _e('Logout', 'pilates-academy'); ?>
+            <span class="nav-icon">🚪</span> <?php echo pll_text('Logout'); ?>
         </a>
     </nav>
 
@@ -66,7 +66,7 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
     </div>
 </div>
 
-<button class="mobile-toggle" onclick="toggleSidebar()"><?php _e('Menu', 'pilates-academy'); ?></button>
+<button class="mobile-toggle" onclick="toggleSidebar()"><?php echo pll_text('Menu'); ?></button>
 
 <script>
     function toggleSidebar() {
