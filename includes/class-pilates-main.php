@@ -139,7 +139,6 @@ class Pilates_Main
             $new_url = add_query_arg($query_args, $new_url);
         }
 
-        error_log("Language link generated: {$url} -> {$new_url}");
         return $new_url;
     }
 

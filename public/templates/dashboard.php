@@ -13,45 +13,6 @@ function pll_text($string)
     return function_exists('pll__') ? pll__($string) : __($string, 'pilates-academy');
 }
 
-// DEBUG: SADA POSLE DEFINISANJA VARIJABLI
-if (function_exists('pll_current_language')) {
-    error_log("=== DASHBOARD POLYLANG DEBUG ===");
-    error_log("Current language: " . pll_current_language());
-    error_log("Default language: " . pll_default_language());
-    error_log("All languages: " . implode(', ', pll_languages_list()));
-    error_log("Lang from query: " . get_query_var('lang'));
-    error_log("Current day: " . $current_day);
-    error_log("Exercise ID: " . ($exercise_id ? $exercise_id : 'none'));
-    error_log("REQUEST_URI: " . $_SERVER['REQUEST_URI']);
-
-    // Test specific exercise translations
-    if ($exercise_id) {
-        error_log("--- Exercise Translation Test ---");
-        foreach (pll_languages_list() as $lang) {
-            $translated_id = pll_get_post($exercise_id, $lang);
-            $post = $translated_id ? get_post($translated_id) : null;
-            error_log("Exercise {$exercise_id} in {$lang}: " . ($translated_id ? $translated_id : 'none') .
-                " - Status: " . ($post ? $post->post_status : 'N/A') .
-                " - Title: " . ($post ? $post->post_title : 'N/A'));
-        }
-    }
-
-    // Test day term translations
-    if ($current_day) {
-        error_log("--- Day Term Translation Test ---");
-        $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
-        if ($day_term) {
-            error_log("Original day term: " . $day_term->name . " (ID: " . $day_term->term_id . ")");
-            foreach (pll_languages_list() as $lang) {
-                $translated_term_id = pll_get_term($day_term->term_id, $lang);
-                $term = $translated_term_id ? get_term($translated_term_id) : null;
-                error_log("Day term in {$lang}: " . ($term ? $term->name : 'NOT FOUND') . " (ID: " . ($translated_term_id ? $translated_term_id : 'none') . ")");
-            }
-        }
-    }
-
-    error_log("=== END DEBUG ===");
-}
 
 // Get student info
 global $wpdb;
@@ -63,8 +24,6 @@ $student = $wpdb->get_row($wpdb->prepare(
 
 // Handle profile update
 if ($_POST && isset($_POST['update_profile'])) {
-    error_log('Profile update started');
-
     $update_data = array();
 
     if (isset($_POST['first_name'])) {
@@ -119,27 +78,43 @@ function get_translated_dashboard_url($args = array())
         <!-- Main Content -->
         <div class="main-content">
             <div class="global-header">
-                <div class="global-header-right">
-                    <!-- Language Switcher -->
-                    <div class="language-switcher">
-                        <?php
-                        if (function_exists('pll_the_languages')) {
-                            pll_the_languages(array(
-                                'show_flags' => 1,
-                                'show_names' => 1,
-                                'hide_current' => 0,
-                                'dropdown' => 0
-                            ));
-                        }
-                        ?>
-                    </div>
+                <button class="mobile-toggle" onclick="toggleSidebar()"><?php echo pll_text('Menu'); ?></button>
 
-                    <!-- Theme Toggle -->
-                    <button id="theme-toggle" class="pilates-theme-toggle">
-                        <span class="icon">🌙</span>
-                        <span class="text"><?php echo pll_text('Dark Mode'); ?></span>
-                    </button>
+                <script>
+                    function toggleSidebar() {
+                        const sidebar = document.getElementById('sidebar');
+                        sidebar.classList.toggle('mobile-open');
+                    }
+
+                    document.addEventListener('click', function(e) {
+                        const sidebar = document.getElementById('sidebar');
+                        const toggle = document.querySelector('.mobile-toggle');
+
+                        if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
+                            sidebar.classList.remove('mobile-open');
+                        }
+                    });
+                </script>
+                <!-- Language Switcher -->
+                <div class="language-switcher">
+                    <?php
+                    if (function_exists('pll_the_languages')) {
+                        pll_the_languages(array(
+                            'show_flags' => 1,
+                            'show_names' => 1,
+                            'hide_current' => 0,
+                            'dropdown' => 0
+                        ));
+                    }
+                    ?>
                 </div>
+
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" class="pilates-theme-toggle">
+                    <span class="icon">🌙</span>
+                    <span class="text"><?php echo pll_text('Dark Mode'); ?></span>
+                </button>
+
             </div>
             <?php if ($current_page === 'profile'): ?>
                 <!-- Profile Page -->
@@ -500,11 +475,6 @@ function get_translated_dashboard_url($args = array())
                         $exercises_query = new WP_Query($args);
                         $exercise_ids = $exercises_query->posts;
 
-                        // DEBUG za ukrajinski
-                        if ($current_lang === 'uk') {
-                            error_log("UK Exercise Query - Found IDs: " . print_r($exercise_ids, true));
-                        }
-
                         if (!empty($exercise_ids)) {
                             // Get unique positions from these exercises
                             $positions = wp_get_object_terms($exercise_ids, 'exercise_position');
@@ -572,10 +542,6 @@ function get_translated_dashboard_url($args = array())
 
                                 $position_exercises = get_posts($position_args);
 
-                                // DEBUG za ukrajinski
-                                if ($current_lang === 'uk') {
-                                    error_log("UK Position Exercises found: " . count($position_exercises));
-                                }
 
                                 if (!empty($position_exercises)):
                         ?>
@@ -608,7 +574,7 @@ function get_translated_dashboard_url($args = array())
                                                     <div class="exercise-card-content">
                                                         <h4 class="exercise-card-title"><?php echo esc_html($exercise->post_title); ?></h4>
 
-                                                        <div class="exercise-card-meta">
+                                                        <!-- <div class="exercise-card-meta">
                                                             <?php if ($order > 0): ?>
                                                                 <span class="meta-tag">#<?php echo $order; ?></span>
                                                             <?php endif; ?>
@@ -616,7 +582,7 @@ function get_translated_dashboard_url($args = array())
                                                             <?php if ($duration): ?>
                                                                 <span class="meta-tag">🕐 <?php echo $duration; ?><?php echo pll_text('min'); ?></span>
                                                             <?php endif; ?>
-                                                        </div>
+                                                        </div> -->
 
                                                         <?php if ($short_desc): ?>
                                                             <div class="exercise-card-description">

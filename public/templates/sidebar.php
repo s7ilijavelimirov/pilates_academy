@@ -65,21 +65,3 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
         <div class="version">v1.0.0</div>
     </div>
 </div>
-
-<button class="mobile-toggle" onclick="toggleSidebar()"><?php echo pll_text('Menu'); ?></button>
-
-<script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('mobile-open');
-    }
-
-    document.addEventListener('click', function(e) {
-        const sidebar = document.getElementById('sidebar');
-        const toggle = document.querySelector('.mobile-toggle');
-
-        if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !toggle.contains(e.target)) {
-            sidebar.classList.remove('mobile-open');
-        }
-    });
-</script>
