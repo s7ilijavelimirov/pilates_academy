@@ -428,8 +428,8 @@ add_action('init', function () {
             'Privacy',
             'Policy',
             'Legal',
-
-            // Mobile/Responsive strings
+            'Training Documents',
+            'Training Document',
             'Mobile View',
             'Desktop View',
             'Tablet View',
@@ -449,6 +449,14 @@ add_action('init', function () {
         }
     }
 }, 25);
+add_action('after_setup_theme', 'hide_admin_bar_except_admin');
+function hide_admin_bar_except_admin()
+{
+    if (!current_user_can('administrator')) {
+        show_admin_bar(false);
+    }
+}
+
 
 // Helper function to get correct dashboard URL with language
 function get_pilates_dashboard_url($args = array(), $lang = null)
@@ -528,7 +536,7 @@ add_action('admin_init', function () {
 // });
 
 // PRIVREMENO - ukloni nakon testiranja
-add_action('admin_init', function() {
+add_action('admin_init', function () {
     if (isset($_GET['flush_pilates'])) {
         flush_rewrite_rules(true);
         wp_redirect(admin_url());

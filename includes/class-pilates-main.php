@@ -21,15 +21,57 @@ class Pilates_Main
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
         add_action('init', array($this, 'register_post_types_and_taxonomies'));
 
+
         // Polylang integration - ISPRAVLJEN HOOK
         add_action('init', array($this, 'polylang_integration'), 20);
 
-        // DIREKTNO dodaj filter umesto preko polylang_integration
+
+        // DODAJ OVE NOVE HOOKOVE ZA POSITION ORDERING
+        add_action('exercise_position_add_form_fields', array($this, 'add_position_order_field'));
+        add_action('exercise_position_edit_form_fields', array($this, 'edit_position_order_field'));
+        add_action('create_exercise_position', array($this, 'save_position_order'));
+        add_action('edited_exercise_position', array($this, 'save_position_order'));
+
+        // PDF assignment за training days!
+        add_action('init', array($this, 'add_training_day_pdf_fields'));
+
         if (function_exists('pll_current_language')) {
             add_filter('pll_the_language_link', array($this, 'filter_language_links'), 10, 2);
         }
     }
+    public function add_position_order_field()
+    {
+?>
+        <div class="form-field">
+            <label for="position_order">Display Order</label>
+            <input type="number" name="position_order" id="position_order" value="0" min="0" step="1" />
+            <p>Lower numbers appear first (0, 1, 2, etc.). Default is 0.</p>
+        </div>
+    <?php
+    }
 
+    public function edit_position_order_field($term)
+    {
+        $order = get_term_meta($term->term_id, 'position_order', true);
+        $order = $order !== '' ? $order : 0;
+    ?>
+        <tr class="form-field">
+            <th scope="row"><label for="position_order">Display Order</label></th>
+            <td>
+                <input type="number" name="position_order" id="position_order" value="<?php echo esc_attr($order); ?>" min="0" step="1" />
+                <p class="description">Lower numbers appear first (0, 1, 2, etc.). Default is 0.</p>
+            </td>
+        </tr>
+    <?php
+    }
+
+    public function save_position_order($term_id)
+    {
+        if (isset($_POST['position_order'])) {
+            $order = intval($_POST['position_order']);
+            update_term_meta($term_id, 'position_order', $order);
+        }
+    }
     // Zameni postojeću polylang_integration funkciju u class-pilates-main.php
     public function polylang_integration()
     {
@@ -72,75 +114,103 @@ class Pilates_Main
         add_rewrite_tag('%pilates_params%', '(.*)');
     }
 
-    public function filter_language_links($url, $slug)
-    {
-        // KLJUČNA ISPRAVKA: Bolje detektovanje Pilates stranica
-        global $wp_query;
+   
+// 3. U class-pilates-main.php - ažuriraj filter_language_links funkciju:
 
-        // Proveri da li je ovo Pilates stranica na više načina
-        $is_pilates_page = (
-            get_query_var('pilates_page') ||
-            strpos($_SERVER['REQUEST_URI'], 'pilates-dashboard') !== false ||
-            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false ||
-            (isset($wp_query->query_vars['pilates_page']))
-        );
+public function filter_language_links($url, $slug)
+{
+    global $wp_query;
 
-        if (!$is_pilates_page) {
-            return $url;
-        }
+    $is_pilates_page = (
+        get_query_var('pilates_page') ||
+        strpos($_SERVER['REQUEST_URI'], 'pilates-dashboard') !== false ||
+        strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false ||
+        (isset($wp_query->query_vars['pilates_page']))
+    );
 
-        $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
-        $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
-        $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
+    if (!$is_pilates_page) {
+        return $url;
+    }
 
-        // Determine base path
-        $is_login = (
-            get_query_var('pilates_page') === 'login' ||
-            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false
-        );
+    $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
+    $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
+    $pdf_id = isset($_GET['pdf']) ? intval($_GET['pdf']) : null;
+    $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
 
-        if ($is_login) {
-            $base_path = '/pilates-login/';
+    // Determine base path
+    $is_login = (
+        get_query_var('pilates_page') === 'login' ||
+        strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false
+    );
+
+    if ($is_login) {
+        $base_path = '/pilates-login/';
+    } else {
+        $base_path = '/pilates-dashboard/';
+    }
+
+    // Language prefix logic
+    if ($slug !== pll_default_language()) {
+        $new_url = home_url('/' . $slug . $base_path);
+    } else {
+        $new_url = home_url($base_path);
+    }
+
+    // Add query parameters
+    $query_args = array();
+
+    if ($current_day) {
+        $query_args['day'] = $current_day;
+    }
+
+    // Exercise translation
+    if ($exercise_id && function_exists('pll_get_post')) {
+        $translated_id = pll_get_post($exercise_id, $slug);
+        if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
+            $query_args['exercise'] = $translated_id;
         } else {
-            $base_path = '/pilates-dashboard/';
+            $query_args['exercise'] = $exercise_id;
         }
+    }
 
-        // ISPRAVKA: Language prefix logic
-        if ($slug !== pll_default_language()) {
-            $new_url = home_url('/' . $slug . $base_path);
-        } else {
-            $new_url = home_url($base_path);
-        }
-
-        // Add query parameters
-        $query_args = array();
-
-        if ($current_day) {
-            $query_args['day'] = $current_day;
-        }
-
-        if ($exercise_id && function_exists('pll_get_post')) {
-            // ISPRAVKA: Bolje handling translation
-            $translated_id = pll_get_post($exercise_id, $slug);
-            if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
-                $query_args['exercise'] = $translated_id;
-             
-            } else {
-                $query_args['exercise'] = $exercise_id;
-               
+    // PDF LOGIC - Najdi odgovarajući PDF za target jezik
+    if ($pdf_id && $current_day) {
+        $target_pdf_id = $pdf_id; // fallback
+        
+        // Dobij day term za target jezik
+        $day_term_original = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+        
+        if ($day_term_original && function_exists('pll_get_term')) {
+            $target_day_term_id = pll_get_term($day_term_original->term_id, $slug);
+            
+            if ($target_day_term_id) {
+                $target_day_term = get_term($target_day_term_id);
+                
+                if ($target_day_term) {
+                    // Dobij assigned PDF za target jezik
+                    $target_assigned_pdfs = get_term_meta($target_day_term->term_id, 'assigned_pdfs', true);
+                    
+                    if (is_array($target_assigned_pdfs) && !empty($target_assigned_pdfs)) {
+                        // Uzmi prvi PDF iz liste (trebao bi biti samo jedan)
+                        $target_pdf_id = $target_assigned_pdfs[0];
+                    }
+                }
             }
         }
-
-        if ($current_page && $current_page !== 'dashboard') {
-            $query_args['page'] = $current_page;
-        }
-
-        if (!empty($query_args)) {
-            $new_url = add_query_arg($query_args, $new_url);
-        }
-
-        return $new_url;
+        
+        $query_args['pdf'] = $target_pdf_id;
     }
+
+    if ($current_page && $current_page !== 'dashboard') {
+        $query_args['page'] = $current_page;
+    }
+
+    if (!empty($query_args)) {
+        $new_url = add_query_arg($query_args, $new_url);
+    }
+
+    return $new_url;
+}
 
     public function handle_subtitle_request()
     {
@@ -193,13 +263,13 @@ class Pilates_Main
         }
     }
 
-   public function add_rewrite_rules()
-{
-    add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
-    add_rewrite_rule('^pilates-dashboard/?.*', 'index.php?pilates_page=dashboard', 'top');
+    public function add_rewrite_rules()
+    {
+        add_rewrite_rule('^pilates-login/?$', 'index.php?pilates_page=login', 'top');
+        add_rewrite_rule('^pilates-dashboard/?.*', 'index.php?pilates_page=dashboard', 'top');
 
-    add_rewrite_tag('%pilates_page%', '([^&]+)');
-}
+        add_rewrite_tag('%pilates_page%', '([^&]+)');
+    }
 
     public function custom_template_loader($template)
     {
@@ -236,7 +306,7 @@ class Pilates_Main
         $lang = get_query_var('lang');
 
         if ($lang && in_array($lang, pll_languages_list())) {
-          
+
 
             // Set Polylang current language - ISPRAVLJEN PRISTUP
             $language_obj = PLL()->model->get_language($lang);
@@ -411,28 +481,28 @@ class Pilates_Main
         }
 
         $sql_students = "CREATE TABLE $table_students (
-    id mediumint(9) NOT NULL AUTO_INCREMENT,
-    user_id bigint(20) NULL,
-    first_name varchar(100) NOT NULL,
-    last_name varchar(100) NOT NULL,
-    email varchar(100),
-    phone varchar(20),
-    primary_language varchar(5) DEFAULT 'en',
-    date_joined date NOT NULL,
-    validity_date date NULL,
-    status varchar(20) DEFAULT 'active',
-    notes text,
-    avatar_id bigint(20) NULL,
-    last_login datetime NULL,
-    login_count int DEFAULT 0,
-    stored_password varchar(255) NULL,
-    credentials_sent tinyint(1) DEFAULT 0,
-    created_at datetime DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    KEY user_id (user_id),
-    KEY email (email),
-    KEY avatar_id (avatar_id)
-) $charset_collate;";
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NULL,
+        first_name varchar(100) NOT NULL,
+        last_name varchar(100) NOT NULL,
+        email varchar(100),
+        phone varchar(20),
+        primary_language varchar(5) DEFAULT 'en',
+        date_joined date NOT NULL,
+        validity_date date NULL,
+        status varchar(20) DEFAULT 'active',
+        notes text,
+        avatar_id bigint(20) NULL,
+        last_login datetime NULL,
+        login_count int DEFAULT 0,
+        stored_password varchar(255) NULL,
+        credentials_sent tinyint(1) DEFAULT 0,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY email (email),
+        KEY avatar_id (avatar_id)
+    ) $charset_collate;";
 
         // Ostatak koda ostaje isti...
         $table_sessions = $wpdb->prefix . 'pilates_student_sessions';
@@ -452,5 +522,81 @@ class Pilates_Main
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql_students);
         dbDelta($sql_sessions);
+    }
+    public function add_training_day_pdf_fields()
+    {
+        // Proveri da li Real3D FlipBook plugin postoji
+        if (!post_type_exists('r3d')) {
+            return;
+        }
+
+        add_action('exercise_day_edit_form_fields', array($this, 'add_pdf_field_to_edit_day'));
+        add_action('edited_exercise_day', array($this, 'save_day_pdf_assignment'));
+    }
+
+    public function add_pdf_field_to_edit_day($term)
+    {
+        if (!post_type_exists('r3d')) {
+            return;
+        }
+
+        $assigned_pdfs = get_term_meta($term->term_id, 'assigned_pdfs', true);
+        if (!is_array($assigned_pdfs)) {
+            $assigned_pdfs = array();
+        }
+
+        $pdf_posts = get_posts(array(
+            'post_type' => 'r3d',
+            'posts_per_page' => -1,
+            'post_status' => 'publish',
+            'orderby' => 'title',
+            'order' => 'ASC'
+        ));
+    ?>
+        <tr class="form-field">
+            <th scope="row">
+                <label for="assigned_pdfs">📚 Training Documents (PDFs)</label>
+            </th>
+            <td>
+                <?php if (!empty($pdf_posts)): ?>
+                    <fieldset>
+                        <?php foreach ($pdf_posts as $pdf): ?>
+                            <?php $checked = in_array($pdf->ID, $assigned_pdfs) ? 'checked' : ''; ?>
+                            <label style="display: block; margin-bottom: 8px;">
+                                <input type="checkbox" name="assigned_pdfs[]" value="<?php echo $pdf->ID; ?>" <?php echo $checked; ?>>
+                                <strong><?php echo esc_html($pdf->post_title); ?></strong>
+                                <?php if ($pdf->post_excerpt): ?>
+                                    <br><span style="margin-left: 20px; color: #666; font-size: 13px;"><?php echo esc_html($pdf->post_excerpt); ?></span>
+                                <?php endif; ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </fieldset>
+
+                    <?php if (!empty($assigned_pdfs)): ?>
+                        <p><strong>Currently assigned:</strong> <?php echo count($assigned_pdfs); ?> PDF document(s)</p>
+                    <?php endif; ?>
+
+                <?php else: ?>
+                    <p>No PDF documents found. <a href="<?php echo admin_url('post-new.php?post_type=r3d'); ?>" target="_blank">Create one first</a>.</p>
+                <?php endif; ?>
+
+                <p class="description">Select PDF documents that belong to this training day. Students will see these documents when they access this training day.</p>
+            </td>
+        </tr>
+<?php
+    }
+
+    public function save_day_pdf_assignment($term_id)
+    {
+        if (!post_type_exists('r3d')) {
+            return;
+        }
+
+        $assigned_pdfs = array();
+        if (isset($_POST['assigned_pdfs']) && is_array($_POST['assigned_pdfs'])) {
+            $assigned_pdfs = array_map('intval', $_POST['assigned_pdfs']);
+        }
+
+        update_term_meta($term_id, 'assigned_pdfs', $assigned_pdfs);
     }
 }

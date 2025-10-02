@@ -13,7 +13,6 @@ function pll_text($string)
     return function_exists('pll__') ? pll__($string) : __($string, 'pilates-academy');
 }
 
-
 // Get student info
 global $wpdb;
 $table_name = $wpdb->prefix . 'pilates_students';
@@ -74,6 +73,7 @@ function get_translated_dashboard_url($args = array())
         })();
     </script>
     <link rel="stylesheet" href="<?php echo PILATES_PLUGIN_URL . 'admin/css/dashboard.css'; ?>">
+    <?php wp_head(); ?>
 </head>
 
 <body>
@@ -382,6 +382,7 @@ function get_translated_dashboard_url($args = array())
                                         <?php if (!empty($text)): ?>
                                             <div class="detailed-instructions">
                                                 <div class="detailed-instructions-content">
+
                                                     <?php echo $text; ?>
                                                 </div>
                                             </div>
@@ -395,6 +396,69 @@ function get_translated_dashboard_url($args = array())
                     </div>
                 <?php endif; ?>
 
+            <?php elseif (isset($_GET['pdf']) && !empty($_GET['pdf'])): ?>
+                <!-- Single PDF View -->
+                <?php
+                $pdf_id = intval($_GET['pdf']);
+                $pdf_post = get_post($pdf_id);
+
+                if ($pdf_post && $pdf_post->post_type === 'r3d' && $pdf_post->post_status === 'publish'):
+                    // Dobij FlipBook ID
+                    $flipbook_id = get_post_meta($pdf_post->ID, 'flipbook_id', true);
+                    if (!$flipbook_id || empty($flipbook_id)) {
+                        $flipbook_id = $pdf_post->ID; // fallback
+                    }
+                ?>
+                    <div class="content-header">
+                        <h1 class="content-title"><?php echo esc_html($pdf_post->post_title); ?></h1>
+                        <div class="breadcrumb">
+                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
+                            <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>">
+                                <?php
+                                $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                if (function_exists('pll_get_term') && $day_term) {
+                                    $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                    if ($translated_term_id) {
+                                        $day_term = get_term($translated_term_id);
+                                    }
+                                }
+                                echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
+                                ?>
+                            </a> /
+                            <?php echo esc_html($pdf_post->post_title); ?>
+                        </div>
+                    </div>
+
+                    <div class="content-body">
+                        <div class="exercise-header">
+                            <div class="exercise-meta">
+                                <span class="meta-item">📚 <?php echo pll_text('Training Document'); ?></span>
+
+                                <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="back-btn">
+                                    ← <?php echo pll_text('Back to'); ?> <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day; ?>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="exercise-detail">
+                            <div class="pdf-container" style="margin-top: 30px;">
+                                <div class="pdf-section">
+                                    <?php echo do_shortcode('[real3dflipbook id="' . $flipbook_id . '"]'); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="content-header">
+                        <h1 class="content-title"><?php echo pll_text('Document not found'); ?></h1>
+                    </div>
+                    <div class="content-body">
+                        <p><?php echo pll_text('The requested document is not available.'); ?></p>
+                        <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="btn btn-primary">
+                            ← <?php echo pll_text('Back to training day'); ?>
+                        </a>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <!-- Dashboard Home -->
                 <div class="content-header">
@@ -424,7 +488,46 @@ function get_translated_dashboard_url($args = array())
                             <?php endfor; ?>
                         </div>
                     </div>
+                    <?php
+                    $pdf_documents = array();
 
+                    if (post_type_exists('r3d')) {
+                        // Get current day term
+                        $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+
+                        if ($day_term) {
+                            // Get assigned PDFs from term meta
+                            $assigned_pdf_ids = get_term_meta($day_term->term_id, 'assigned_pdfs', true);
+
+                            if (is_array($assigned_pdf_ids) && !empty($assigned_pdf_ids)) {
+                                $pdf_documents = get_posts(array(
+                                    'post_type' => 'r3d',
+                                    'posts_per_page' => -1,
+                                    'post__in' => $assigned_pdf_ids,
+                                    'orderby' => 'post__in', // Preserve the order from admin
+                                    'post_status' => 'publish'
+                                ));
+                            }
+                        }
+                    }
+
+                    if (!empty($pdf_documents)): ?>
+                        <h3 class="section-title">📚 <?php echo pll_text('Training Documents'); ?></h3>
+                        <div class="documents-section">
+                            <div class="documents-list">
+                                <?php foreach ($pdf_documents as $document):
+                                    $document_title = $document->post_title;
+                                    $document_url = get_translated_dashboard_url(array('day' => $current_day, 'pdf' => $document->ID));
+                                ?>
+                                    <div class="document-item">
+                                        <a href="<?php echo esc_url($document_url); ?>" class="document-btn">
+                                            📖 <?php echo esc_html($document_title); ?>
+                                        </a>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <div class="exercises-section">
                         <?php
                         // Get current day taxonomy term with translation
@@ -445,7 +548,8 @@ function get_translated_dashboard_url($args = array())
                         <h2 class="section-title"><?php echo esc_html($day_title); ?> <?php echo pll_text('Training'); ?></h2>
 
                         <?php
-                        // Get exercises for current day - ISPRAVKA ZA UKRAJINSKI
+                        // OPTIMIZOVANA LOGIKA ZA SORTIRANJE POZICIJA
+                        // 1. Prvo dobij sve exercises za current day
                         $args = array(
                             'post_type' => 'pilates_exercise',
                             'posts_per_page' => -1,
@@ -456,7 +560,8 @@ function get_translated_dashboard_url($args = array())
                                     'terms' => 'day-' . $current_day
                                 )
                             ),
-                            'fields' => 'ids'
+                            'orderby' => 'menu_order',
+                            'order' => 'ASC'
                         );
 
                         // KRITIČNA ISPRAVKA za ukrajinski
@@ -478,76 +583,59 @@ function get_translated_dashboard_url($args = array())
                             }
                         }
 
-                        $exercises_query = new WP_Query($args);
-                        $exercise_ids = $exercises_query->posts;
+                        $all_exercises = get_posts($args);
 
-                        if (!empty($exercise_ids)) {
-                            // Get unique positions from these exercises
-                            $positions = wp_get_object_terms($exercise_ids, 'exercise_position');
+                        if (!empty($all_exercises)) {
+                            // Grupiši vežbe po pozicijama
+                            $exercises_by_position = array();
 
-                            // Remove duplicates properly
-                            $unique_positions = array();
-                            foreach ($positions as $position) {
-                                $unique_positions[$position->term_id] = $position;
-                            }
-                            $positions = array_values($unique_positions);
-                        } else {
-                            $positions = array();
-                        }
+                            foreach ($all_exercises as $exercise) {
+                                $exercise_positions = get_the_terms($exercise->ID, 'exercise_position');
+                                if ($exercise_positions && !is_wp_error($exercise_positions)) {
+                                    $position = $exercise_positions[0];
+                                    $position_id = $position->term_id;
 
-                        if (!empty($positions)):
-                            foreach ($positions as $position):
-                                // Get exercises for this position and day - ISPRAVKA ZA UKRAJINSKI
-                                $position_args = array(
-                                    'post_type' => 'pilates_exercise',
-                                    'posts_per_page' => -1,
-                                    'tax_query' => array(
-                                        'relation' => 'AND',
-                                        array(
-                                            'taxonomy' => 'exercise_day',
-                                            'field' => 'slug',
-                                            'terms' => 'day-' . $current_day
-                                        ),
-                                        array(
-                                            'taxonomy' => 'exercise_position',
-                                            'field' => 'term_id',
-                                            'terms' => $position->term_id
-                                        )
-                                    ),
-                                    'orderby' => 'menu_order',
-                                    'order' => 'ASC'
-                                );
-
-                                // KRITIČNA ISPRAVKA za ukrajinski
-                                if ($current_lang === 'uk') {
-                                    $position_args['suppress_filters'] = true;
-
-                                    // Dobij translated day term
-                                    $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
-                                    if ($day_term && function_exists('pll_get_term')) {
-                                        $translated_day_term_id = pll_get_term($day_term->term_id, 'uk');
-                                        if ($translated_day_term_id) {
-                                            $position_args['tax_query'][0]['field'] = 'term_id';
-                                            $position_args['tax_query'][0]['terms'] = $translated_day_term_id;
-                                        }
+                                    if (!isset($exercises_by_position[$position_id])) {
+                                        $exercises_by_position[$position_id] = array();
                                     }
 
-                                    // Dobij translated position term
-                                    if (function_exists('pll_get_term')) {
-                                        $translated_position_id = pll_get_term($position->term_id, 'uk');
-                                        if ($translated_position_id) {
-                                            $position_args['tax_query'][1]['terms'] = $translated_position_id;
-                                        }
-                                    }
-                                } else {
-                                    $position_args['suppress_filters'] = false;
-                                    if (function_exists('pll_default_language') && $current_lang !== pll_default_language()) {
-                                        $position_args['lang'] = $current_lang;
-                                    }
+                                    $exercises_by_position[$position_id][] = $exercise;
                                 }
+                            }
 
-                                $position_exercises = get_posts($position_args);
+                            // Dobij sve pozicije sa njihovim order meta
+                            $position_ids = array_keys($exercises_by_position);
+                            $positions_with_order = array();
 
+                            foreach ($position_ids as $position_id) {
+                                $position = get_term($position_id);
+                                $order = get_term_meta($position_id, 'position_order', true);
+                                $order = ($order !== '' && $order !== false) ? intval($order) : 999;
+
+                                $positions_with_order[] = array(
+                                    'term' => $position,
+                                    'order' => $order,
+                                    'exercises' => $exercises_by_position[$position_id]
+                                );
+                            }
+
+                            // Sortiraj pozicije po order meta
+                            usort($positions_with_order, function ($a, $b) {
+                                if ($a['order'] === $b['order']) {
+                                    return strcmp($a['term']->name, $b['term']->name);
+                                }
+                                return $a['order'] - $b['order'];
+                            });
+
+                            // Prikaži pozicije po sortiranom redosledu
+                            foreach ($positions_with_order as $position_data) {
+                                $position = $position_data['term'];
+                                $position_exercises = $position_data['exercises'];
+
+                                // Sortiraj vežbe unutar pozicije po menu_order
+                                usort($position_exercises, function ($a, $b) {
+                                    return $a->menu_order - $b->menu_order;
+                                });
 
                                 if (!empty($position_exercises)):
                         ?>
@@ -578,17 +666,12 @@ function get_translated_dashboard_url($args = array())
                                                     </div>
 
                                                     <div class="exercise-card-content">
-                                                        <h4 class="exercise-card-title"><?php echo esc_html($exercise->post_title); ?></h4>
-
-                                                        <!-- <div class="exercise-card-meta">
+                                                        <h4 class="exercise-card-title">
                                                             <?php if ($order > 0): ?>
-                                                                <span class="meta-tag">#<?php echo $order; ?></span>
+                                                                <small style="color: var(--pilates-primary); font-weight: 600;">#<?php echo $order; ?></small><br>
                                                             <?php endif; ?>
-
-                                                            <?php if ($duration): ?>
-                                                                <span class="meta-tag">🕐 <?php echo $duration; ?><?php echo pll_text('min'); ?></span>
-                                                            <?php endif; ?>
-                                                        </div> -->
+                                                            <?php echo esc_html($exercise->post_title); ?>
+                                                        </h4>
 
                                                         <?php if ($short_desc): ?>
                                                             <div class="exercise-card-description">
@@ -602,20 +685,22 @@ function get_translated_dashboard_url($args = array())
                                     </div>
                             <?php
                                 endif;
-                            endforeach;
-                        else:
+                            }
+                        } else {
                             ?>
                             <div class="no-exercises">
                                 <h3>🚧 <?php echo pll_text('No exercises available for'); ?> <?php echo esc_html($day_title); ?></h3>
                                 <p><?php echo pll_text('Please check back later or contact your instructor for more information.'); ?></p>
                             </div>
-                        <?php endif; ?>
+                        <?php } ?>
                     </div>
                 </div>
             <?php endif; ?>
+
         </div>
     </div>
     <script src="<?php echo PILATES_PLUGIN_URL . 'admin/js/dashboard.js'; ?>"></script>
+    <?php wp_footer(); ?>
 </body>
 
 </html>
