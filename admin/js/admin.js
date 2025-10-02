@@ -120,4 +120,38 @@ jQuery(document).ready(function ($) {
             alert('Please fill in all required fields.');
         }
     });
+    // Avatar upload validation
+    document.getElementById('avatar-file-input')?.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const maxSize = 1 * 1024 * 1024; // 1MB
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+        // Validate file type
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Only JPG, PNG, and WEBP images are allowed.');
+            e.target.value = '';
+            return;
+        }
+
+        // Validate file size
+        if (file.size > maxSize) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            alert(`File size too large (${sizeMB}MB). Maximum allowed size is 1MB.`);
+            e.target.value = '';
+            return;
+        }
+
+        // Preview image
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            const img = document.getElementById('current-avatar');
+            if (img) {
+                img.src = event.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+    
 });

@@ -160,16 +160,20 @@ add_action('init', function () {
             'Welcome',
             'Dashboard',
             'Home',
-            'Choose Your Training Day',
+            'Choose Your Category',
             'Training',
             'Day',
             'exercises',
             'min',
-            'Exercise Preview',
+            'View Exercise',
             'Back to',
             'No exercises available for',
             'Please check back later or contact your instructor for more information.',
-
+            'Categories',
+            'Change Photo',
+            'Invalid file type. Only JPG, PNG, and WEBP images are allowed.',
+            'File size too large. Maximum allowed size is 1MB.',
+            'Account Information',
             // Navigation & Menu strings
             'My Profile',
             'My Progress',
@@ -177,6 +181,8 @@ add_action('init', function () {
             'Logout',
             'Menu',
             'Profile',
+            'Save Changes',
+            
 
             // Profile Page strings
             'First Name',

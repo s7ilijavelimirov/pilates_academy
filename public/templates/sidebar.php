@@ -49,6 +49,9 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'profile')); ?>" class="nav-item <?php echo ($current_page === 'profile') ? 'active' : ''; ?>">
             <span class="nav-icon">👤</span> <?php echo pll_text('My Profile'); ?>
         </a>
+        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>" class="nav-item <?php echo ($current_page === 'categories') ? 'active' : ''; ?>">
+            <span class="nav-icon">📋</span> <?php echo pll_text('Categories'); ?>
+        </a>
         <a style="display:none" href="<?php echo get_pilates_dashboard_url(array('page' => 'progress')); ?>" class="nav-item <?php echo ($current_page === 'progress') ? 'active' : ''; ?>">
             <span class="nav-icon">📊</span> <?php echo pll_text('My Progress'); ?>
         </a>

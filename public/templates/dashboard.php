@@ -24,6 +24,69 @@ $student = $wpdb->get_row($wpdb->prepare(
 // Handle profile update
 if ($_POST && isset($_POST['update_profile'])) {
     $update_data = array();
+    $upload_error = null;
+
+    // Handle avatar upload sa validacijom
+    if (!empty($_FILES['avatar_upload']['name'])) {
+        $file = $_FILES['avatar_upload'];
+
+        // Validacija file type
+        $allowed_types = array('image/jpeg', 'image/jpg', 'image/png', 'image/webp');
+        $file_type = $file['type'];
+
+        if (!in_array($file_type, $allowed_types)) {
+            $upload_error = pll_text('Invalid file type. Only JPG, PNG, and WEBP images are allowed.');
+        }
+
+        // Validacija file size (1MB max)
+        $max_size = 1 * 1024 * 1024; // 1MB u bajtovima
+        if ($file['size'] > $max_size) {
+            $upload_error = pll_text('File size too large. Maximum allowed size is 1MB.');
+        }
+
+        // Ako nema errora, nastavi sa uploadom
+        if (!$upload_error) {
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+            $upload = wp_handle_upload($file, array('test_form' => false));
+
+            if (!isset($upload['error'])) {
+                // Resize i crop sliku na 400x400px
+                $image_editor = wp_get_image_editor($upload['file']);
+
+                if (!is_wp_error($image_editor)) {
+                    // Resize sa crop (center)
+                    $image_editor->resize(400, 400, true);
+                    $image_editor->save($upload['file']);
+                }
+
+                $attachment = array(
+                    'post_mime_type' => $upload['type'],
+                    'post_title' => sanitize_file_name($file['name']),
+                    'post_content' => '',
+                    'post_status' => 'inherit'
+                );
+
+                $attach_id = wp_insert_attachment($attachment, $upload['file']);
+                $attach_data = wp_generate_attachment_metadata($attach_id, $upload['file']);
+                wp_update_attachment_metadata($attach_id, $attach_data);
+
+                // Delete old avatar
+                $old_avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+                if ($old_avatar_id) {
+                    wp_delete_attachment($old_avatar_id, true);
+                }
+
+                update_user_meta($current_user->ID, 'pilates_avatar', $attach_id);
+                wp_cache_delete($current_user->ID, 'user_meta');
+                wp_cache_delete($current_user->ID, 'users');
+            } else {
+                $upload_error = $upload['error'];
+            }
+        }
+    }
 
     if (isset($_POST['first_name'])) {
         wp_update_user(array('ID' => $current_user->ID, 'first_name' => sanitize_text_field($_POST['first_name'])));
@@ -47,13 +110,13 @@ if ($_POST && isset($_POST['update_profile'])) {
         $wpdb->update($table_name, $update_data, array('user_id' => $current_user->ID));
     }
 
-    // Refresh all data
     $student = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $current_user->ID));
     $current_user = wp_get_current_user();
 
-    $success_message = pll_text('Profile updated successfully!');
+    if (!$upload_error) {
+        $success_message = pll_text('Profile updated successfully!');
+    }
 }
-
 function get_translated_dashboard_url($args = array())
 {
     return get_pilates_dashboard_url($args); // Koristi globalnu helper funkciju
@@ -135,68 +198,114 @@ function get_translated_dashboard_url($args = array())
                     <?php if (isset($success_message)): ?>
                         <div class="success-message"><?php echo $success_message; ?></div>
                     <?php endif; ?>
-
-                    <div class="profile-section">
-                        <div class="avatar-section">
+                    <?php if (isset($upload_error)): ?>
+                        <div class="error-message" style="background: linear-gradient(135deg, #ff6b6b, #ee5a6f); color: white; padding: 16px 24px; border-radius: var(--pilates-radius); margin-bottom: 25px; box-shadow: var(--pilates-shadow); font-weight: 500;">
+                            ⚠️ <?php echo esc_html($upload_error); ?>
+                        </div>
+                    <?php endif; ?>
+                    <div class="profile-page-wrapper">
+                        <!-- Left: Avatar Card -->
+                        <div class="profile-avatar-card">
                             <?php
-                            $avatar_url = get_avatar_url($current_user->ID, array('size' => 150));
+                            wp_cache_delete($current_user->ID, 'user_meta');
+                            $avatar_id = get_user_meta($current_user->ID, 'pilates_avatar', true);
+                            $avatar_url = '';
+
+                            if ($avatar_id) {
+                                $avatar_url = wp_get_attachment_url($avatar_id);
+                            }
+
+                            if (!$avatar_url) {
+                                $avatar_url = get_avatar_url($current_user->ID, array('size' => 200));
+                            }
                             ?>
 
                             <img src="<?php echo esc_url($avatar_url); ?>"
                                 alt="Avatar"
-                                class="user-avatar skip-lazy no-lazyload"
+                                class="current-avatar skip-lazy no-lazyload"
                                 id="current-avatar">
+
+                            <div class="file-input-wrapper">
+                                <label for="avatar-file-input" class="file-input-btn">
+                                    📸 <?php echo pll_text('Change Photo'); ?>
+                                </label>
+                            </div>
+
+                            <div class="profile-user-info">
+                                <h3><?php echo esc_html($current_user->first_name . ' ' . $current_user->last_name); ?></h3>
+                            </div>
                         </div>
 
-                        <form method="post" enctype="multipart/form-data" class="profile-form">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="first_name"><?php echo pll_text('First Name'); ?> *</label>
-                                    <input type="text" id="first_name" name="first_name"
-                                        value="<?php echo esc_attr($current_user->first_name); ?>" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="last_name"><?php echo pll_text('Last Name'); ?> *</label>
-                                    <input type="text" id="last_name" name="last_name"
-                                        value="<?php echo esc_attr($current_user->last_name); ?>" required>
-                                </div>
-                            </div>
+                        <!-- Right: Form Card -->
+                        <div class="profile-form-card">
+                            <h3>⚙️ <?php echo pll_text('Account Information'); ?></h3>
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="email"><?php echo pll_text('Email Address'); ?></label>
-                                    <input type="email" id="email" name="email"
-                                        value="<?php echo esc_attr($current_user->user_email); ?>" disabled>
-                                </div>
-                                <div class="form-group">
-                                    <label for="phone"><?php echo pll_text('Phone Number'); ?></label>
-                                    <input type="text" id="phone" name="phone"
-                                        value="<?php echo esc_attr($student->phone ?? ''); ?>">
-                                </div>
-                            </div>
+                            <form method="post" enctype="multipart/form-data" class="profile-form">
+                                <input type="file"
+                                    name="avatar_upload"
+                                    id="avatar-file-input"
+                                    style="display: none;"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    data-max-size="1048576">
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="primary_language"><?php echo pll_text('Primary Language'); ?></label>
-                                    <select id="primary_language" name="primary_language">
-                                        <option value="en" <?php selected($student->primary_language ?? 'en', 'en'); ?>>🇺🇸 <?php echo pll_text('English'); ?></option>
-                                        <option value="de" <?php selected($student->primary_language ?? 'en', 'de'); ?>>🇩🇪 <?php echo pll_text('German'); ?></option>
-                                        <option value="uk" <?php selected($student->primary_language ?? 'en', 'uk'); ?>>🇺🇦 <?php echo pll_text('Ukrainian'); ?></option>
-                                    </select>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="first_name"><?php echo pll_text('First Name'); ?> *</label>
+                                        <input type="text" id="first_name" name="first_name"
+                                            value="<?php echo esc_attr($current_user->first_name); ?>" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="last_name"><?php echo pll_text('Last Name'); ?> *</label>
+                                        <input type="text" id="last_name" name="last_name"
+                                            value="<?php echo esc_attr($current_user->last_name); ?>" required>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="member_since"><?php echo pll_text('Member Since'); ?></label>
-                                    <input type="text" value="<?php echo date_i18n('F Y', strtotime($student->date_joined ?? $current_user->user_registered)); ?>" disabled>
-                                </div>
-                            </div>
 
-                            <div style="margin-top: 30px;">
-                                <button type="submit" name="update_profile" class="btn btn-primary">💾 <?php echo pll_text('Update Profile'); ?></button>
-                                <a href="<?php echo get_translated_dashboard_url(); ?>" class="btn btn-secondary"><?php echo pll_text('Cancel'); ?></a>
-                            </div>
-                        </form>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="email"><?php echo pll_text('Email Address'); ?></label>
+                                        <input type="email" id="email" name="email"
+                                            value="<?php echo esc_attr($current_user->user_email); ?>" disabled>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="phone"><?php echo pll_text('Phone Number'); ?></label>
+                                        <input type="number" id="phone" name="phone"
+                                            value="<?php echo esc_attr($student->phone ?? ''); ?>">
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="primary_language"><?php echo pll_text('Primary Language'); ?></label>
+                                        <select id="primary_language" name="primary_language" class="language-select-with-flags">
+                                            <option value="en" <?php selected($student->primary_language ?? 'en', 'en'); ?>>English</option>
+                                            <option value="de" <?php selected($student->primary_language ?? 'en', 'de'); ?>>Deutsch</option>
+                                            <option value="uk" <?php selected($student->primary_language ?? 'en', 'uk'); ?>>Українська</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Form Actions -->
+                                <div class="profile-form-actions">
+                                    <a href="<?php echo get_translated_dashboard_url(); ?>" class="btn btn-secondary">
+                                        <?php echo pll_text('Cancel'); ?>
+                                    </a>
+                                    <button type="submit" name="update_profile" class="btn btn-primary">
+                                        <?php echo pll_text('Save Changes'); ?>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
+
+                <script>
+                    // Update flag icon when language changes
+                    document.getElementById('primary_language')?.addEventListener('change', function() {
+                        const wrapper = document.getElementById('language-wrapper');
+                        wrapper.setAttribute('data-lang', this.value);
+                    });
+                </script>
 
             <?php elseif ($current_page === 'progress'): ?>
                 <!-- Progress Page -->
@@ -292,8 +401,8 @@ function get_translated_dashboard_url($args = array())
                     <div class="content-header">
                         <h1 class="content-title"><?php echo esc_html($exercise->post_title); ?></h1>
                         <div class="breadcrumb">
-                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
-                            <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>">
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories')); ?>"><?php echo pll_text('Categories'); ?></a> /
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>">
                                 <?php
                                 $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
                                 if (function_exists('pll_get_term') && $day_term) {
@@ -337,7 +446,7 @@ function get_translated_dashboard_url($args = array())
                                     <span class="meta-item">📍 <?php echo esc_html($position->name); ?></span>
                                 <?php endif; ?>
 
-                                <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="back-btn">
+                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>" class="back-btn">
                                     ← <?php echo pll_text('Back to'); ?> <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day; ?>
                                 </a>
                             </div>
@@ -412,8 +521,8 @@ function get_translated_dashboard_url($args = array())
                     <div class="content-header">
                         <h1 class="content-title"><?php echo esc_html($pdf_post->post_title); ?></h1>
                         <div class="breadcrumb">
-                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
-                            <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>">
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories')); ?>"><?php echo pll_text('Categories'); ?></a> /
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>">
                                 <?php
                                 $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
                                 if (function_exists('pll_get_term') && $day_term) {
@@ -434,7 +543,7 @@ function get_translated_dashboard_url($args = array())
                             <div class="exercise-meta">
                                 <span class="meta-item">📚 <?php echo pll_text('Training Document'); ?></span>
 
-                                <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="back-btn">
+                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>" class="back-btn">
                                     ← <?php echo pll_text('Back to'); ?> <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day; ?>
                                 </a>
                             </div>
@@ -454,38 +563,90 @@ function get_translated_dashboard_url($args = array())
                     </div>
                     <div class="content-body">
                         <p><?php echo pll_text('The requested document is not available.'); ?></p>
-                        <a href="<?php echo get_translated_dashboard_url(array('day' => $current_day)); ?>" class="btn btn-primary">
+                        <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>" class="btn btn-primary">
                             ← <?php echo pll_text('Back to training day'); ?>
                         </a>
                     </div>
                 <?php endif; ?>
-            <?php else: ?>
-                <!-- Dashboard Home -->
+            <?php elseif ($current_page === 'categories'): ?>
+                <!-- Categories Page -->
                 <div class="content-header">
-                    <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
-                    <div class="breadcrumb"><?php echo pll_text('Dashboard'); ?> / <?php echo pll_text('Home'); ?></div>
+                    <h1 class="content-title"><?php echo pll_text('Categories'); ?></h1>
+                    <div class="breadcrumb">
+                        <?php echo pll_text('Categories'); ?>
+                        <?php if (isset($_GET['day'])): ?>
+                            / <?php
+                                $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                if (function_exists('pll_get_term') && $day_term) {
+                                    $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                    if ($translated_term_id) {
+                                        $day_term = get_term($translated_term_id);
+                                    }
+                                }
+                                echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
+                                ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div class="content-body">
                     <div class="days-navigation">
-                        <h3 class="days-nav-title">🗓️ <?php echo pll_text('Choose Your Training Day'); ?></h3>
+                        <h3 class="days-nav-title section-title">📋 <?php echo pll_text('Choose Your Category'); ?></h3>
                         <div class="days-nav">
-                            <?php for ($i = 1; $i <= 10; $i++): ?>
-                                <a href="<?php echo get_translated_dashboard_url(array('day' => $i)); ?>"
-                                    class="day-tab <?php echo ($current_day == $i) ? 'active' : ''; ?>">
-                                    <?php
-                                    // Get translated day name
-                                    $day_term = get_term_by('slug', 'day-' . $i, 'exercise_day');
-                                    if ($day_term && function_exists('pll_get_term')) {
-                                        $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
-                                        if ($translated_term_id) {
-                                            $day_term = get_term($translated_term_id);
-                                        }
+                            <?php
+                            // Proveri koje dane imaju content (exercises ili PDFs)
+                            for ($i = 1; $i <= 10; $i++) {
+                                $day_term = get_term_by('slug', 'day-' . $i, 'exercise_day');
+
+                                if (!$day_term) continue;
+
+                                // Translate term ako postoji
+                                if (function_exists('pll_get_term')) {
+                                    $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                    if ($translated_term_id) {
+                                        $day_term = get_term($translated_term_id);
                                     }
-                                    echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $i;
-                                    ?>
-                                </a>
-                            <?php endfor; ?>
+                                }
+
+                                // Proveri da li ima vežbe
+                                $has_exercises = false;
+                                $exercise_check = get_posts(array(
+                                    'post_type' => 'pilates_exercise',
+                                    'posts_per_page' => 1,
+                                    'tax_query' => array(
+                                        array(
+                                            'taxonomy' => 'exercise_day',
+                                            'field' => 'term_id',
+                                            'terms' => $day_term->term_id
+                                        )
+                                    ),
+                                    'fields' => 'ids'
+                                ));
+
+                                if (!empty($exercise_check)) {
+                                    $has_exercises = true;
+                                }
+
+                                // Proveri da li ima PDFs
+                                $has_pdfs = false;
+                                if (post_type_exists('r3d')) {
+                                    $assigned_pdf_ids = get_term_meta($day_term->term_id, 'assigned_pdfs', true);
+                                    if (is_array($assigned_pdf_ids) && !empty($assigned_pdf_ids)) {
+                                        $has_pdfs = true;
+                                    }
+                                }
+
+                                // Prikaži samo ako ima exercises ILI pdfs
+                                if ($has_exercises || $has_pdfs):
+                            ?>
+                                    <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $i)); ?>"
+                                        class="day-tab <?php echo ($current_day == $i) ? 'active' : ''; ?>">
+                                        <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $i; ?>
+                                    </a>
+                            <?php
+                                endif;
+                            }
+                            ?>
                         </div>
                     </div>
                     <?php
@@ -504,7 +665,7 @@ function get_translated_dashboard_url($args = array())
                                     'post_type' => 'r3d',
                                     'posts_per_page' => -1,
                                     'post__in' => $assigned_pdf_ids,
-                                    'orderby' => 'post__in', // Preserve the order from admin
+                                    'orderby' => 'post__in',
                                     'post_status' => 'publish'
                                 ));
                             }
@@ -517,7 +678,7 @@ function get_translated_dashboard_url($args = array())
                             <div class="documents-list">
                                 <?php foreach ($pdf_documents as $document):
                                     $document_title = $document->post_title;
-                                    $document_url = get_translated_dashboard_url(array('day' => $current_day, 'pdf' => $document->ID));
+                                    $document_url = get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day, 'pdf' => $document->ID));
                                 ?>
                                     <div class="document-item">
                                         <a href="<?php echo esc_url($document_url); ?>" class="document-btn">
@@ -533,7 +694,6 @@ function get_translated_dashboard_url($args = array())
                         // Get current day taxonomy term with translation
                         $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
                         if ($day_term && function_exists('pll_get_term')) {
-                            // Pokušaj da dobiješ prevedeni term
                             $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
                             if ($translated_term_id && $translated_term_id !== $day_term->term_id) {
                                 $translated_term = get_term($translated_term_id);
@@ -549,7 +709,6 @@ function get_translated_dashboard_url($args = array())
 
                         <?php
                         // OPTIMIZOVANA LOGIKA ZA SORTIRANJE POZICIJA
-                        // 1. Prvo dobij sve exercises za current day
                         $args = array(
                             'post_type' => 'pilates_exercise',
                             'posts_per_page' => -1,
@@ -564,10 +723,8 @@ function get_translated_dashboard_url($args = array())
                             'order' => 'ASC'
                         );
 
-                        // KRITIČNA ISPRAVKA za ukrajinski
                         if ($current_lang === 'uk') {
                             $args['suppress_filters'] = true;
-                            // Manuelno dobij translated terms
                             $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
                             if ($day_term && function_exists('pll_get_term')) {
                                 $translated_term_id = pll_get_term($day_term->term_id, 'uk');
@@ -586,7 +743,6 @@ function get_translated_dashboard_url($args = array())
                         $all_exercises = get_posts($args);
 
                         if (!empty($all_exercises)) {
-                            // Grupiši vežbe po pozicijama
                             $exercises_by_position = array();
 
                             foreach ($all_exercises as $exercise) {
@@ -603,7 +759,6 @@ function get_translated_dashboard_url($args = array())
                                 }
                             }
 
-                            // Dobij sve pozicije sa njihovim order meta
                             $position_ids = array_keys($exercises_by_position);
                             $positions_with_order = array();
 
@@ -619,7 +774,6 @@ function get_translated_dashboard_url($args = array())
                                 );
                             }
 
-                            // Sortiraj pozicije po order meta
                             usort($positions_with_order, function ($a, $b) {
                                 if ($a['order'] === $b['order']) {
                                     return strcmp($a['term']->name, $b['term']->name);
@@ -627,12 +781,10 @@ function get_translated_dashboard_url($args = array())
                                 return $a['order'] - $b['order'];
                             });
 
-                            // Prikaži pozicije po sortiranom redosledu
                             foreach ($positions_with_order as $position_data) {
                                 $position = $position_data['term'];
                                 $position_exercises = $position_data['exercises'];
 
-                                // Sortiraj vežbe unutar pozicije po menu_order
                                 usort($position_exercises, function ($a, $b) {
                                     return $a->menu_order - $b->menu_order;
                                 });
@@ -658,10 +810,10 @@ function get_translated_dashboard_url($args = array())
                                                 $featured_image = get_the_post_thumbnail_url($exercise->ID, 'medium');
                                                 $order = $exercise->menu_order;
                                             ?>
-                                                <div class="exercise-card" onclick="window.location.href='<?php echo get_translated_dashboard_url(array('day' => $current_day, 'exercise' => $exercise->ID)); ?>'">
+                                                <div class="exercise-card" onclick="window.location.href='<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day, 'exercise' => $exercise->ID)); ?>'">
                                                     <div class="exercise-image" <?php if ($featured_image): ?>style="background-image: url('<?php echo $featured_image; ?>')" <?php endif; ?>>
                                                         <?php if (!$featured_image): ?>
-                                                            🎯 <?php echo pll_text('Exercise Preview'); ?>
+                                                            🎯 <?php echo pll_text('View Exercise'); ?>
                                                         <?php endif; ?>
                                                     </div>
 
@@ -695,12 +847,20 @@ function get_translated_dashboard_url($args = array())
                         <?php } ?>
                     </div>
                 </div>
-            <?php endif; ?>
 
+            <?php else: ?>
+                <!-- Dashboard Home - PRAZAN, samo welcome -->
+                <div class="content-header">
+                    <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
+                    <div class="breadcrumb"><?php echo pll_text('Dashboard'); ?> / <?php echo pll_text('Home'); ?></div>
+                </div>
+
+                <div class="content-body">
+                </div>
+            <?php endif; ?>
         </div>
-    </div>
-    <script src="<?php echo PILATES_PLUGIN_URL . 'admin/js/dashboard.js'; ?>"></script>
-    <?php wp_footer(); ?>
+        <script src="<?php echo PILATES_PLUGIN_URL . 'admin/js/dashboard.js'; ?>"></script>
+        <?php wp_footer(); ?>
 </body>
 
 </html>
