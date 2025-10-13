@@ -446,7 +446,13 @@ add_action('init', function () {
             'Scroll',
             'Zoom',
             'Fullscreen',
-            'Exit Fullscreen'
+            'Exit Fullscreen',
+
+             // NOVI STRINGOVI - dodaj na kraj niza:
+            'Total Categories',
+            'Last login',
+            'First time login',
+            'No previous login'
         );
 
         // Registruj sve stringove za Polylang

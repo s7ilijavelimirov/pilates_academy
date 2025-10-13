@@ -573,18 +573,21 @@ function get_translated_dashboard_url($args = array())
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Categories'); ?></h1>
                     <div class="breadcrumb">
-                        <?php echo pll_text('Categories'); ?>
+                        <a href="<?php echo get_pilates_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
                         <?php if (isset($_GET['day'])): ?>
-                            / <?php
-                                $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
-                                if (function_exists('pll_get_term') && $day_term) {
-                                    $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
-                                    if ($translated_term_id) {
-                                        $day_term = get_term($translated_term_id);
-                                    }
+                            <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>"><?php echo pll_text('Categories'); ?></a> /
+                            <?php
+                            $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                            if (function_exists('pll_get_term') && $day_term) {
+                                $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                if ($translated_term_id) {
+                                    $day_term = get_term($translated_term_id);
                                 }
-                                echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
-                                ?>
+                            }
+                            echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
+                            ?>
+                        <?php else: ?>
+                            <?php echo pll_text('Categories'); ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -849,13 +852,98 @@ function get_translated_dashboard_url($args = array())
                 </div>
 
             <?php else: ?>
-                <!-- Dashboard Home - PRAZAN, samo welcome -->
+                <!-- Dashboard Home -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
                     <div class="breadcrumb"><?php echo pll_text('Dashboard'); ?> / <?php echo pll_text('Home'); ?></div>
                 </div>
 
                 <div class="content-body">
+                    <div class="dashboard-cards">
+                        <?php
+                        // Count active categories (days that have ONLY exercises)
+                        $active_categories = 0;
+                        for ($i = 1; $i <= 10; $i++) {
+                            $day_term = get_term_by('slug', 'day-' . $i, 'exercise_day');
+                            if (!$day_term) continue;
+
+                            // Translate term if needed
+                            if (function_exists('pll_get_term')) {
+                                $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                if ($translated_term_id) {
+                                    $day_term = get_term($translated_term_id);
+                                }
+                            }
+
+                            // Check ONLY for exercises (bez PDF-ova)
+                            $exercise_check = get_posts(array(
+                                'post_type' => 'pilates_exercise',
+                                'posts_per_page' => 1,
+                                'tax_query' => array(
+                                    array(
+                                        'taxonomy' => 'exercise_day',
+                                        'field' => 'term_id',
+                                        'terms' => $day_term->term_id
+                                    )
+                                ),
+                                'fields' => 'ids'
+                            ));
+
+                            if (!empty($exercise_check)) {
+                                $active_categories++;
+                            }
+                        }
+
+                        // Get PREVIOUS login info (not current session)
+                        global $wpdb;
+                        $table_name = $wpdb->prefix . 'pilates_students';
+                        $previous_login_data = $wpdb->get_row($wpdb->prepare(
+                            "SELECT last_login, login_count FROM $table_name WHERE user_id = %d",
+                            $current_user->ID
+                        ));
+
+                        $last_login = $previous_login_data->last_login ?? null;
+                        $login_count = $previous_login_data->login_count ?? 0;
+
+                        // Ako je login_count = 1, znači da je ovo PRVI login
+                        if ($login_count <= 1) {
+                            $last_login_formatted = pll_text('First time login');
+                        } elseif ($last_login) {
+                            // Prikaži PRETHODNI login (jer se trenutni tek update-ovao)
+                            $last_login_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_login));
+                        } else {
+                            $last_login_formatted = pll_text('No previous login');
+                        }
+                        ?>
+
+                        <!-- Categories Card -->
+                        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>" class="dashboard-stat-card">
+                            <div class="card-icon-section">
+                                <span class="emoji-icon">📋</span>
+                                <?php echo pll_text('Categories'); ?>
+                            </div>
+                            <div class="card-content">
+                                <div class="card-label"><?php echo pll_text('Total Categories'); ?></div>
+                                <div class="card-number"><?php echo $active_categories; ?></div>
+                            </div>
+                            <div class="card-arrow"></div>
+                        </a>
+
+                        <!-- Profile Card -->
+                        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'profile')); ?>" class="dashboard-stat-card">
+                            <div class="card-icon-section">
+                                <span class="emoji-icon">👤</span>
+                                <?php echo pll_text('My Profile'); ?>
+                            </div>
+                            <div class="card-content">
+                                <div class="card-subtitle">
+                                    <span class="last-login-label"><?php echo pll_text('Last login'); ?>:</span>
+                                    <span class="last-login-date"><?php echo esc_html($last_login_formatted); ?></span>
+                                </div>
+                            </div>
+                            <div class="card-arrow"></div>
+                        </a>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>

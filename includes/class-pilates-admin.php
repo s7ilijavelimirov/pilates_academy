@@ -1025,16 +1025,18 @@ class Pilates_Admin
 <?php
     }
 
-    private function send_welcome_email($email, $password, $first_name, $language = 'en')
-    {
-        $template = $this->get_email_templates($language, 'welcome');
-        $login_url = $this->get_language_login_url($language);
+private function send_welcome_email($email, $password, $first_name, $language = 'en')
+{
+    $template = $this->get_email_templates($language, 'welcome');
+    $login_url = $this->get_language_login_url($language);
 
-        $subject = $template['subject'];
+    $subject = $template['subject'];
 
-        $message = "
+    $message = "
 <html>
 <head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -1042,7 +1044,8 @@ class Pilates_Admin
             margin: 0;
             padding: 20px;
             line-height: 1.6;
-            border:1px solid
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
         }
         .email-container {
             background: #ffffff;
@@ -1052,7 +1055,7 @@ class Pilates_Admin
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(4, 178, 190, 0.15);
             overflow: hidden;
-            border:1px solid #04b2be;
+            border: 1px solid #04b2be;
         }
         .email-header {
             background: linear-gradient(135deg, #04b2be 0%, #1ad8cc 100%);
@@ -1085,20 +1088,20 @@ class Pilates_Admin
             background: linear-gradient(135deg, #f0fafa 0%, #e8f6f6 100%);
             border: 2px solid #04b2be;
             border-radius: 12px;
-            padding: 30px;
+            padding: 30px 20px 20px 20px;
             margin: 30px 0;
             position: relative;
         }
-        .credentials-box::before {
-            content: '🔐';
+        .emoji-badge {
             position: absolute;
             top: -15px;
-            left: 30px;
+            left: 20px;
             background: #04b2be;
             color: white;
             padding: 8px 12px;
             border-radius: 50%;
             font-size: 16px;
+            line-height: 1;
         }
         .credentials-title {
             color: #04b2be;
@@ -1113,26 +1116,24 @@ class Pilates_Admin
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 12px;
-            display: flex;
-            align-items: center;
         }
         .credential-label {
             font-weight: 600;
             color: #04b2be;
-            min-width: 140px;
-            font-size: 14px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: block;
         }
         .credential-value {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             background: #f8f9fa;
-            padding: 8px 12px;
+            padding: 10px 12px;
             border-radius: 6px;
             border: 1px solid #e9ecef;
-            flex: 1;
-            margin-left: 10px;
             font-size: 14px;
             color: #2f2f2f;
             word-break: break-all;
+            display: block;
         }
         .login-button {
             display: block;
@@ -1147,7 +1148,6 @@ class Pilates_Admin
             margin: 30px auto;
             max-width: 280px;
             box-shadow: 0 4px 15px rgba(4, 178, 190, 0.3);
-            transition: all 0.3s ease;
         }
         .help-text {
             background: #f8f9fa;
@@ -1156,6 +1156,7 @@ class Pilates_Admin
             margin: 30px 0;
             border-radius: 0 8px 8px 0;
             color: #495057;
+            font-size: 14px;
         }
         .email-footer {
             background: #f8f9fa;
@@ -1165,12 +1166,97 @@ class Pilates_Admin
             color: #6c757d;
             font-size: 14px;
         }
+        
+        /* Mobile Responsive */
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 10px !important;
+            }
+            .email-container {
+                border-radius: 12px !important;
+                max-width: 100% !important;
+            }
+            .email-header {
+                padding: 30px 20px !important;
+            }
+            .email-header h1 {
+                font-size: 22px !important;
+            }
+            .email-header .subtitle {
+                font-size: 14px !important;
+            }
+            .email-body {
+                padding: 30px 20px !important;
+            }
+            .intro-text {
+                font-size: 16px !important;
+            }
+            .credentials-box {
+                padding: 25px 15px 15px 15px !important;
+                margin: 20px 0 !important;
+            }
+            .emoji-badge {
+                left: 15px !important;
+                font-size: 14px !important;
+                padding: 6px 10px !important;
+            }
+            .credentials-title {
+                font-size: 16px !important;
+                margin-bottom: 15px !important;
+            }
+            .credential-item {
+                padding: 12px !important;
+                margin-bottom: 10px !important;
+            }
+            .credential-label {
+                font-size: 12px !important;
+                margin-bottom: 6px !important;
+            }
+            .credential-value {
+                font-size: 13px !important;
+                padding: 8px 10px !important;
+            }
+            .login-button {
+                padding: 14px 24px !important;
+                font-size: 15px !important;
+                max-width: 100% !important;
+                margin: 20px 0 !important;
+            }
+            .help-text {
+                padding: 15px !important;
+                margin: 20px 0 !important;
+                font-size: 13px !important;
+            }
+            .email-footer {
+                padding: 20px 15px !important;
+                font-size: 13px !important;
+            }
+        }
+        
+        /* Extra Small Mobile */
+        @media only screen and (max-width: 400px) {
+            .email-header h1 {
+                font-size: 20px !important;
+            }
+            .intro-text {
+                font-size: 15px !important;
+            }
+            .credentials-title {
+                font-size: 15px !important;
+            }
+            .credential-value {
+                font-size: 12px !important;
+            }
+            .login-button {
+                font-size: 14px !important;
+                padding: 12px 20px !important;
+            }
+        }
     </style>
 </head>
 <body>
     <div class='email-container'>
         <div class='email-header'>
-          
             <h1>" . str_replace('{first_name}', $first_name, $template['greeting']) . "</h1>
             <div class='subtitle'>Premium Training Platform</div>
         </div>
@@ -1179,21 +1265,22 @@ class Pilates_Admin
             <div class='intro-text'>{$template['intro']}</div>
             
             <div class='credentials-box'>
+                <span class='emoji-badge'>🔐</span>
                 <div class='credentials-title'>{$template['credentials_text']}</div>
                 
                 <div class='credential-item'>
-                    <div class='credential-label'>{$template['username_label']}:</div>
-                    <div class='credential-value'>{$email}</div>
+                    <span class='credential-label'>{$template['username_label']}:</span>
+                    <span class='credential-value'>{$email}</span>
                 </div>
                 
                 <div class='credential-item'>
-                    <div class='credential-label'>{$template['password_label']}:</div>
-                    <div class='credential-value'>{$password}</div>
+                    <span class='credential-label'>{$template['password_label']}:</span>
+                    <span class='credential-value'>{$password}</span>
                 </div>
                 
                 <div class='credential-item'>
-                    <div class='credential-label'>{$template['login_url_label']}:</div>
-                    <div class='credential-value'><a href='{$login_url}' style='color: #04b2be; text-decoration: none;'>{$login_url}</a></div>
+                    <span class='credential-label'>{$template['login_url_label']}:</span>
+                    <span class='credential-value'><a href='{$login_url}' style='color: #04b2be; text-decoration: none; word-break: break-all;'>{$login_url}</a></span>
                 </div>
             </div>
             
@@ -1214,9 +1301,9 @@ class Pilates_Admin
 </html>
 ";
 
-        $headers = array('Content-Type: text/html; charset=UTF-8');
-        return wp_mail($email, $subject, $message, $headers);
-    }
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+    return wp_mail($email, $subject, $message, $headers);
+}
 
 
     public function sessions_page()
