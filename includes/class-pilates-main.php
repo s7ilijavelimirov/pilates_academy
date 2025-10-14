@@ -17,6 +17,7 @@ class Pilates_Main
         add_action('init', array($this, 'init'));
         add_action('init', array($this, 'add_rewrite_rules'));
         add_action('init', array($this, 'handle_subtitle_request'));
+        add_action('init', array($this, 'register_resource_acf_fields'), 20);
         add_filter('template_include', array($this, 'custom_template_loader'));
         add_action('wp_login', array($this, 'track_student_login'), 10, 2);
         add_action('init', array($this, 'register_post_types_and_taxonomies'));
@@ -114,103 +115,103 @@ class Pilates_Main
         add_rewrite_tag('%pilates_params%', '(.*)');
     }
 
-   
-// 3. U class-pilates-main.php - ažuriraj filter_language_links funkciju:
 
-public function filter_language_links($url, $slug)
-{
-    global $wp_query;
+    // 3. U class-pilates-main.php - ažuriraj filter_language_links funkciju:
 
-    $is_pilates_page = (
-        get_query_var('pilates_page') ||
-        strpos($_SERVER['REQUEST_URI'], 'pilates-dashboard') !== false ||
-        strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false ||
-        (isset($wp_query->query_vars['pilates_page']))
-    );
+    public function filter_language_links($url, $slug)
+    {
+        global $wp_query;
 
-    if (!$is_pilates_page) {
-        return $url;
-    }
+        $is_pilates_page = (
+            get_query_var('pilates_page') ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-dashboard') !== false ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false ||
+            (isset($wp_query->query_vars['pilates_page']))
+        );
 
-    $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
-    $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
-    $pdf_id = isset($_GET['pdf']) ? intval($_GET['pdf']) : null;
-    $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
-
-    // Determine base path
-    $is_login = (
-        get_query_var('pilates_page') === 'login' ||
-        strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false
-    );
-
-    if ($is_login) {
-        $base_path = '/pilates-login/';
-    } else {
-        $base_path = '/pilates-dashboard/';
-    }
-
-    // Language prefix logic
-    if ($slug !== pll_default_language()) {
-        $new_url = home_url('/' . $slug . $base_path);
-    } else {
-        $new_url = home_url($base_path);
-    }
-
-    // Add query parameters
-    $query_args = array();
-
-    if ($current_day) {
-        $query_args['day'] = $current_day;
-    }
-
-    // Exercise translation
-    if ($exercise_id && function_exists('pll_get_post')) {
-        $translated_id = pll_get_post($exercise_id, $slug);
-        if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
-            $query_args['exercise'] = $translated_id;
-        } else {
-            $query_args['exercise'] = $exercise_id;
+        if (!$is_pilates_page) {
+            return $url;
         }
-    }
 
-    // PDF LOGIC - Najdi odgovarajući PDF za target jezik
-    if ($pdf_id && $current_day) {
-        $target_pdf_id = $pdf_id; // fallback
-        
-        // Dobij day term za target jezik
-        $day_term_original = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
-        
-        if ($day_term_original && function_exists('pll_get_term')) {
-            $target_day_term_id = pll_get_term($day_term_original->term_id, $slug);
-            
-            if ($target_day_term_id) {
-                $target_day_term = get_term($target_day_term_id);
-                
-                if ($target_day_term) {
-                    // Dobij assigned PDF za target jezik
-                    $target_assigned_pdfs = get_term_meta($target_day_term->term_id, 'assigned_pdfs', true);
-                    
-                    if (is_array($target_assigned_pdfs) && !empty($target_assigned_pdfs)) {
-                        // Uzmi prvi PDF iz liste (trebao bi biti samo jedan)
-                        $target_pdf_id = $target_assigned_pdfs[0];
+        $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
+        $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
+        $pdf_id = isset($_GET['pdf']) ? intval($_GET['pdf']) : null;
+        $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
+
+        // Determine base path
+        $is_login = (
+            get_query_var('pilates_page') === 'login' ||
+            strpos($_SERVER['REQUEST_URI'], 'pilates-login') !== false
+        );
+
+        if ($is_login) {
+            $base_path = '/pilates-login/';
+        } else {
+            $base_path = '/pilates-dashboard/';
+        }
+
+        // Language prefix logic
+        if ($slug !== pll_default_language()) {
+            $new_url = home_url('/' . $slug . $base_path);
+        } else {
+            $new_url = home_url($base_path);
+        }
+
+        // Add query parameters
+        $query_args = array();
+
+        if ($current_day) {
+            $query_args['day'] = $current_day;
+        }
+
+        // Exercise translation
+        if ($exercise_id && function_exists('pll_get_post')) {
+            $translated_id = pll_get_post($exercise_id, $slug);
+            if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
+                $query_args['exercise'] = $translated_id;
+            } else {
+                $query_args['exercise'] = $exercise_id;
+            }
+        }
+
+        // PDF LOGIC - Najdi odgovarajući PDF za target jezik
+        if ($pdf_id && $current_day) {
+            $target_pdf_id = $pdf_id; // fallback
+
+            // Dobij day term za target jezik
+            $day_term_original = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+
+            if ($day_term_original && function_exists('pll_get_term')) {
+                $target_day_term_id = pll_get_term($day_term_original->term_id, $slug);
+
+                if ($target_day_term_id) {
+                    $target_day_term = get_term($target_day_term_id);
+
+                    if ($target_day_term) {
+                        // Dobij assigned PDF za target jezik
+                        $target_assigned_pdfs = get_term_meta($target_day_term->term_id, 'assigned_pdfs', true);
+
+                        if (is_array($target_assigned_pdfs) && !empty($target_assigned_pdfs)) {
+                            // Uzmi prvi PDF iz liste (trebao bi biti samo jedan)
+                            $target_pdf_id = $target_assigned_pdfs[0];
+                        }
                     }
                 }
             }
+
+            $query_args['pdf'] = $target_pdf_id;
         }
-        
-        $query_args['pdf'] = $target_pdf_id;
-    }
 
-    if ($current_page && $current_page !== 'dashboard') {
-        $query_args['page'] = $current_page;
-    }
+        if ($current_page && $current_page !== 'dashboard') {
+            $query_args['page'] = $current_page;
+        }
 
-    if (!empty($query_args)) {
-        $new_url = add_query_arg($query_args, $new_url);
-    }
+        if (!empty($query_args)) {
+            $new_url = add_query_arg($query_args, $new_url);
+        }
 
-    return $new_url;
-}
+        return $new_url;
+    }
 
     public function handle_subtitle_request()
     {
@@ -445,6 +446,100 @@ public function filter_language_links($url, $slug)
             'meta_box_cb' => 'post_categories_meta_box',
             'show_in_rest' => true,
         ));
+
+        // ============================================
+        // MANUALS & RESOURCES - NOVI CPT
+        // ============================================
+
+        // Register Resource Post Type
+        $resource_labels = array(
+            'name' => 'Resources',
+            'singular_name' => 'Resource',
+            'add_new' => 'Add New Resource',
+            'add_new_item' => 'Add New Resource',
+            'edit_item' => 'Edit Resource',
+            'new_item' => 'New Resource',
+            'view_item' => 'View Resource',
+            'search_items' => 'Search Resources',
+            'not_found' => 'No resources found',
+            'not_found_in_trash' => 'No resources found in trash',
+            'all_items' => 'All Resources',
+            'menu_name' => 'Resources'
+        );
+
+        $resource_args = array(
+            'labels' => $resource_labels,
+            'public' => true,
+            'show_ui' => true,
+            'show_in_menu' => true, // Povezuje sa Pilates Academy menu
+            'menu_position' => 32,
+            'capability_type' => 'post',
+            'hierarchical' => false,
+            'supports' => array('title', 'editor', 'thumbnail'),
+            'has_archive' => false,
+            'rewrite' => false, // Ne treba frontend URL
+            'query_var' => false,
+            'menu_icon' => 'dashicons-media-document',
+            'show_in_rest' => true,
+        );
+
+        register_post_type('pilates_resource', $resource_args);
+
+        // ============================================
+        // TAXONOMY: Apparatus
+        // ============================================
+
+        register_taxonomy('apparatus', array('pilates_resource', 'pilates_exercise'), array(
+            'hierarchical' => true,
+            'labels' => array(
+                'name' => 'Apparatus',
+                'singular_name' => 'Apparatus',
+                'add_new_item' => 'Add New Apparatus',
+                'edit_item' => 'Edit Apparatus',
+                'update_item' => 'Update Apparatus',
+                'view_item' => 'View Apparatus',
+                'search_items' => 'Search Apparatus',
+                'not_found' => 'Not Found',
+                'no_terms' => 'No apparatus',
+            ),
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'query_var' => true,
+            'public' => false,
+            'show_in_menu' => 'edit.php?post_type=pilates_resource',
+            'show_tagcloud' => false,
+            'rewrite' => false,
+            'meta_box_cb' => 'post_categories_meta_box',
+            'show_in_rest' => true,
+        ));
+
+        // ============================================
+        // TAXONOMY: Resource Type
+        // ============================================
+
+        register_taxonomy('resource_type', 'pilates_resource', array(
+            'hierarchical' => true,
+            'labels' => array(
+                'name' => 'Resource Types',
+                'singular_name' => 'Resource Type',
+                'add_new_item' => 'Add New Type',
+                'edit_item' => 'Edit Type',
+                'update_item' => 'Update Type',
+                'view_item' => 'View Type',
+                'search_items' => 'Search Types',
+                'not_found' => 'Not Found',
+                'no_terms' => 'No types',
+            ),
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'query_var' => true,
+            'public' => false,
+            'show_in_menu' => 'edit.php?post_type=pilates_resource',
+            'show_tagcloud' => false,
+            'rewrite' => false,
+            'meta_box_cb' => 'post_categories_meta_box',
+            'show_in_rest' => true,
+        ));
     }
 
     public function create_tables()
@@ -598,5 +693,58 @@ public function filter_language_links($url, $slug)
         }
 
         update_term_meta($term_id, 'assigned_pdfs', $assigned_pdfs);
+    }
+    public function register_resource_acf_fields()
+    {
+        if (!function_exists('acf_add_local_field_group')) {
+            return;
+        }
+
+        acf_add_local_field_group(array(
+            'key' => 'group_pilates_resource_fields',
+            'title' => 'Resource Details',
+            'fields' => array(
+                array(
+                    'key' => 'field_resource_flipbook',
+                    'label' => 'Link Real3D FlipBook',
+                    'name' => 'resource_flipbook',
+                    'type' => 'post_object',
+                    'post_type' => array('r3d'),
+                    'return_format' => 'id',
+                    'allow_null' => 1,
+                    'instructions' => 'Select existing FlipBook post (if you have one)',
+                ),
+                array(
+                    'key' => 'field_resource_pdf',
+                    'label' => 'OR Upload PDF Directly',
+                    'name' => 'resource_pdf',
+                    'type' => 'file',
+                    'return_format' => 'array',
+                    'library' => 'all',
+                    'mime_types' => 'pdf',
+                    'instructions' => 'Upload PDF file (if not using FlipBook)',
+                ),
+                array(
+                    'key' => 'field_resource_short_desc',
+                    'label' => 'Short Description',
+                    'name' => 'resource_short_desc',
+                    'type' => 'textarea',
+                    'rows' => 3,
+                    'instructions' => 'Brief description shown in resource card',
+                ),
+            ),
+            'location' => array(
+                array(
+                    array(
+                        'param' => 'post_type',
+                        'operator' => '==',
+                        'value' => 'pilates_resource',
+                    ),
+                ),
+            ),
+            'menu_order' => 0,
+            'position' => 'normal',
+            'style' => 'default',
+        ));
     }
 }

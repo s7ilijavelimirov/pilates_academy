@@ -93,27 +93,30 @@ function pilates_deactivate()
     flush_rewrite_rules();
 }
 
-// Load textdomain and Polylang support
+// ============================================
+// POLYLANG INTEGRATION - FIXED
+// ============================================
+
+// Register post types for Polylang AFTER they're registered
+add_filter('pll_get_post_types', function ($post_types) {
+    $post_types['pilates_exercise'] = 'pilates_exercise';
+    $post_types['pilates_resource'] = 'pilates_resource';
+    return $post_types;
+}, 99); // HIGH priority - after CPTs are registered
+
+// Register taxonomies for Polylang AFTER they're registered  
+add_filter('pll_get_taxonomies', function ($taxonomies) {
+    $taxonomies['exercise_day'] = 'exercise_day';
+    $taxonomies['exercise_position'] = 'exercise_position';
+    $taxonomies['exercise_equipment'] = 'exercise_equipment';
+    $taxonomies['apparatus'] = 'apparatus';
+    $taxonomies['resource_type'] = 'resource_type';
+    return $taxonomies;
+}, 99); // HIGH priority - after taxonomies are registered
+
+// Load textdomain
 add_action('init', function () {
-    // Load plugin textdomain
     load_plugin_textdomain('pilates-academy', false, dirname(plugin_basename(__FILE__)) . '/languages');
-
-    // Check if Polylang is active
-    if (function_exists('pll_get_post_types')) {
-        // Register post types for translation
-        add_filter('pll_get_post_types', function ($post_types) {
-            $post_types['pilates_exercise'] = true;
-            return $post_types;
-        });
-
-        // Register taxonomies for translation
-        add_filter('pll_get_taxonomies', function ($taxonomies) {
-            $taxonomies['exercise_day'] = true;
-            $taxonomies['exercise_position'] = true;
-            $taxonomies['exercise_equipment'] = true;
-            return $taxonomies;
-        });
-    }
 }, 5);
 
 // OSNOVNI REWRITE RULES - UVEK SE DODAJU
@@ -182,7 +185,7 @@ add_action('init', function () {
             'Menu',
             'Profile',
             'Save Changes',
-            
+
 
             // Profile Page strings
             'First Name',
@@ -448,11 +451,20 @@ add_action('init', function () {
             'Fullscreen',
             'Exit Fullscreen',
 
-             // NOVI STRINGOVI - dodaj na kraj niza:
+            // NOVI STRINGOVI - dodaj na kraj niza:
             'Total Categories',
             'Last login',
             'First time login',
-            'No previous login'
+            'No previous login',
+            'Manuals & Resources',
+            'Apparatus',
+            'Resource Type',
+            'Apply Filters',
+            'Clear All',
+            'View PDF',
+            'No resources found',
+            'Try adjusting your filters or check back later.',
+            'Back to Resources'
         );
 
         // Registruj sve stringove za Polylang

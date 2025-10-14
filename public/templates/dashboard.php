@@ -512,10 +512,9 @@ function get_translated_dashboard_url($args = array())
                 $pdf_post = get_post($pdf_id);
 
                 if ($pdf_post && $pdf_post->post_type === 'r3d' && $pdf_post->post_status === 'publish'):
-                    // Dobij FlipBook ID
                     $flipbook_id = get_post_meta($pdf_post->ID, 'flipbook_id', true);
                     if (!$flipbook_id || empty($flipbook_id)) {
-                        $flipbook_id = $pdf_post->ID; // fallback
+                        $flipbook_id = $pdf_post->ID;
                     }
                 ?>
                     <div class="content-header">
@@ -850,8 +849,251 @@ function get_translated_dashboard_url($args = array())
                         <?php } ?>
                     </div>
                 </div>
+            <?php elseif (isset($_GET['view']) && !empty($_GET['view']) && $current_page === 'resources'): ?>
+                <!-- Single PDF View -->
+                <?php
+                $pdf_id = intval($_GET['view']);
+                $pdf_post = get_post($pdf_id);
 
-            <?php else: ?>
+                if ($pdf_post && $pdf_post->post_type === 'r3d' && $pdf_post->post_status === 'publish'):
+                    $flipbook_id = get_post_meta($pdf_post->ID, 'flipbook_id', true);
+                    if (!$flipbook_id || empty($flipbook_id)) {
+                        $flipbook_id = $pdf_post->ID;
+                    }
+                ?>
+                    <div class="content-header">
+                        <h1 class="content-title"><?php echo esc_html($pdf_post->post_title); ?></h1>
+                        <div class="breadcrumb">
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>"><?php echo pll_text('Manuals & Resources'); ?></a> /
+                            <?php echo esc_html($pdf_post->post_title); ?>
+                        </div>
+                    </div>
+
+                    <div class="content-body">
+                        <div class="exercise-header">
+                            <div class="exercise-meta">
+                                <span class="meta-item">📚 <?php echo pll_text('Training Document'); ?></span>
+
+                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="back-btn">
+                                    ← <?php echo pll_text('Back to Resources'); ?>
+                                </a>
+                            </div>
+                            
+                        </div>
+                        <div class="exercise-detail">
+                            <!-- Content Section (Above PDF) -->
+                            <?php if (!empty($pdf_post->post_content)): ?>
+                                <div class="detailed-instructions">
+                                    <div class="detailed-instructions-content">
+                                        <?php echo apply_filters('the_content', $pdf_post->post_content); ?>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- PDF FlipBook -->
+                            <div class="pdf-container" style="margin-top: 30px;">
+                                <div class="pdf-section">
+                                    <?php echo do_shortcode('[real3dflipbook id="' . $flipbook_id . '"]'); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="content-header">
+                        <h1 class="content-title"><?php echo pll_text('Document not found'); ?></h1>
+                    </div>
+                    <div class="content-body">
+                        <p><?php echo pll_text('The requested document is not available.'); ?></p>
+                        <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="btn btn-primary">
+                            ← <?php echo pll_text('Back to Resources'); ?>
+                        </a>
+                    </div>
+                <?php endif; ?>
+            <?php elseif ($current_page === 'resources'): ?>
+                <!-- Resources Page -->
+                <div class="content-header">
+                    <h1 class="content-title"><?php echo pll_text('Manuals & Resources'); ?></h1>
+                    <div class="breadcrumb">
+                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Manuals & Resources'); ?>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <?php
+                    // Get current filters
+                    $selected_apparatus = isset($_GET['apparatus']) ? array_map('sanitize_text_field', (array)$_GET['apparatus']) : array();
+                    $selected_types = isset($_GET['resource_type']) ? array_map('sanitize_text_field', (array)$_GET['resource_type']) : array();
+
+                    // Get all apparatus terms
+                    $apparatus_terms = get_terms(array(
+                        'taxonomy' => 'apparatus',
+                        'hide_empty' => false,
+                        'lang' => $current_lang
+                    ));
+
+                    // Get all resource type terms
+                    $resource_type_terms = get_terms(array(
+                        'taxonomy' => 'resource_type',
+                        'hide_empty' => false,
+                        'lang' => $current_lang
+                    ));
+                    ?>
+
+                    <!-- Filter Section -->
+                    <div class="resources-filters">
+                        <form method="get" action="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="filter-form">
+                            <input type="hidden" name="page" value="resources">
+
+                            <!-- Apparatus Filter -->
+                            <div class="filter-group">
+                                <h4 class="filter-title">🏋️ <?php echo pll_text('Apparatus'); ?></h4>
+                                <div class="filter-checkboxes">
+                                    <?php foreach ($apparatus_terms as $term): ?>
+                                        <label class="filter-checkbox">
+                                            <input type="checkbox"
+                                                name="apparatus[]"
+                                                value="<?php echo esc_attr($term->slug); ?>"
+                                                <?php echo in_array($term->slug, $selected_apparatus) ? 'checked' : ''; ?>>
+                                            <span><?php echo esc_html($term->name); ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+
+                            <!-- Resource Type Filter -->
+                            <div class="filter-group">
+                                <h4 class="filter-title">📄 <?php echo pll_text('Resource Type'); ?></h4>
+                                <div class="filter-checkboxes">
+                                    <?php foreach ($resource_type_terms as $term): ?>
+                                        <label class="filter-checkbox">
+                                            <input type="checkbox"
+                                                name="resource_type[]"
+                                                value="<?php echo esc_attr($term->slug); ?>"
+                                                <?php echo in_array($term->slug, $selected_types) ? 'checked' : ''; ?>>
+                                            <span><?php echo esc_html($term->name); ?></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="filter-actions">
+                                <button type="submit" class="btn btn-primary"><?php echo pll_text('Apply Filters'); ?></button>
+                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="btn btn-secondary"><?php echo pll_text('Clear All'); ?></a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Resources Grid -->
+                    <div class="resources-section">
+                        <?php
+                        // Build query args
+                        $args = array(
+                            'post_type' => 'pilates_resource',
+                            'posts_per_page' => -1,
+                            'post_status' => 'publish',
+                            'orderby' => 'title',
+                            'order' => 'ASC',
+                            'lang' => $current_lang
+                        );
+
+                        // Add tax query if filters are selected
+                        $tax_query = array('relation' => 'AND');
+
+                        if (!empty($selected_apparatus)) {
+                            $tax_query[] = array(
+                                'taxonomy' => 'apparatus',
+                                'field' => 'slug',
+                                'terms' => $selected_apparatus
+                            );
+                        }
+
+                        if (!empty($selected_types)) {
+                            $tax_query[] = array(
+                                'taxonomy' => 'resource_type',
+                                'field' => 'slug',
+                                'terms' => $selected_types
+                            );
+                        }
+
+                        if (count($tax_query) > 1) {
+                            $args['tax_query'] = $tax_query;
+                        }
+
+                        // Get resources
+                        $resources = get_posts($args);
+
+                        if (!empty($resources)):
+                        ?>
+                            <div class="exercise-grid">
+                                <?php foreach ($resources as $resource):
+                                    $short_desc = get_field('resource_short_desc', $resource->ID);
+                                    $flipbook_id = get_field('resource_flipbook', $resource->ID);
+                                    $pdf_file = get_field('resource_pdf', $resource->ID);
+
+                                    // Get apparatus
+                                    $resource_apparatus = wp_get_object_terms($resource->ID, 'apparatus');
+                                    $apparatus_name = !empty($resource_apparatus) ? $resource_apparatus[0]->name : '';
+
+                                    // Get resource type
+                                    $resource_types = wp_get_object_terms($resource->ID, 'resource_type');
+                                    $type_name = !empty($resource_types) ? $resource_types[0]->name : '';
+
+                                    // Build URL
+                                    if ($flipbook_id) {
+                                        $view_url = get_translated_dashboard_url(array('page' => 'resources', 'view' => $flipbook_id));
+                                    } else {
+                                        $view_url = $pdf_file ? $pdf_file['url'] : '#';
+                                    }
+                                ?>
+                                    <div class="exercise-card resource-card">
+                                        <div class="exercise-image resource-icon">
+                                            📄
+                                        </div>
+
+                                        <div class="exercise-card-content">
+                                            <h4 class="exercise-card-title">
+                                                <?php echo esc_html($resource->post_title); ?>
+                                            </h4>
+
+                                            <div class="exercise-card-meta">
+                                                <?php if ($apparatus_name): ?>
+                                                    <span class="meta-tag"><?php echo esc_html($apparatus_name); ?></span>
+                                                <?php endif; ?>
+                                                <?php if ($type_name): ?>
+                                                    <span class="meta-tag"><?php echo esc_html($type_name); ?></span>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <?php if ($short_desc): ?>
+                                                <div class="exercise-card-description">
+                                                    <?php echo wp_trim_words(strip_tags($short_desc), 20); ?>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <a href="<?php echo esc_url($view_url); ?>"
+                                                class="btn btn-primary btn-block"
+                                                <?php echo !$flipbook_id && $pdf_file ? 'target="_blank"' : ''; ?>>
+                                                <?php echo pll_text('View PDF'); ?>
+                                            </a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                        <?php else: ?>
+                            <div class="no-exercises">
+                                <h3>📚 <?php echo pll_text('No resources found'); ?></h3>
+                                <p><?php echo pll_text('Try adjusting your filters or check back later.'); ?></p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+
+
+            <?php
+            else: ?>
                 <!-- Dashboard Home -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>

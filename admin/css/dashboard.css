@@ -2104,3 +2104,110 @@ span.flipbook-menu-btn-wrapper.flipbook-menu-btn.skin-color.flipbook-has-tooltip
         font-size: 38px;
     }
 }
+
+/* ===== RESOURCES FILTERS ===== */
+.resources-filters {
+    background: var(--pilates-card-bg);
+    border: 1px solid var(--pilates-border);
+    border-radius: var(--pilates-radius);
+    padding: 30px;
+    margin-bottom: 35px;
+    box-shadow: var(--pilates-shadow);
+}
+
+.filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.filter-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pilates-text);
+    margin: 0;
+    font-family: var(--pilates-font);
+}
+
+.filter-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 15px;
+    background: var(--pilates-bg);
+    border: 2px solid var(--pilates-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--pilates-transition);
+    font-size: 14px;
+    font-family: var(--pilates-font);
+}
+
+.filter-checkbox:hover {
+    border-color: var(--pilates-primary);
+    background: var(--pilates-card-bg);
+}
+
+.filter-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--pilates-primary);
+}
+
+.filter-checkbox input[type="checkbox"]:checked + span {
+    font-weight: 600;
+    color: var(--pilates-primary);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 10px;
+}
+
+.btn-block {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+/* Resource Card Specific */
+.resource-card .resource-icon {
+    font-size: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .resources-filters {
+        padding: 20px;
+    }
+
+    .filter-checkboxes {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-actions {
+        flex-direction: column;
+    }
+
+    .filter-actions .btn {
+        width: 100%;
+    }
+}
