@@ -23,6 +23,11 @@ class Pilates_Main
         add_action('init', array($this, 'register_post_types_and_taxonomies'));
 
 
+        add_action('init', array($this, 'register_video_encyclopedia_page'));
+        add_action('init', array($this, 'init_video_encyclopedia'));
+        add_action('wp_ajax_ppa_search_videos', array($this, 'ajax_search_videos'));
+        add_action('wp_ajax_nopriv_ppa_search_videos', array($this, 'ajax_search_videos'));
+
         // Polylang integration - ISPRAVLJEN HOOK
         add_action('init', array($this, 'polylang_integration'), 20);
 
@@ -446,7 +451,20 @@ class Pilates_Main
             'meta_box_cb' => 'post_categories_meta_box',
             'show_in_rest' => true,
         ));
-
+        register_taxonomy(
+            'exercise_difficulty',
+            'pilates_exercise',
+            array(
+                'label' => __('Difficulty Level', 'pilates-academy'),
+                'rewrite' => array('slug' => 'difficulty'),
+                'hierarchical' => true,
+                'show_admin_column' => true,
+                'show_in_rest' => true,
+                'show_ui' => true,
+                'public' => true,
+                'meta_box_cb' => 'post_categories_meta_box',
+            )
+        );
         // ============================================
         // MANUALS & RESOURCES - NOVI CPT
         // ============================================
@@ -746,5 +764,165 @@ class Pilates_Main
             'position' => 'normal',
             'style' => 'default',
         ));
+    }
+    // 1. REGISTRUJ VIDEO ENCYCLOPEDIA STRANICU
+    public function register_video_encyclopedia_page()
+    {
+        $page_title = __('Video Encyclopedia', 'pilates-academy');
+        $menu_slug = 'video-encyclopedia';
+
+        // Kreiraj page ako ne postoji (samo prvi put)
+        $page = get_page_by_path($menu_slug);
+        if (!$page) {
+            $page_id = wp_insert_post(array(
+                'post_type' => 'page',
+                'post_title' => $page_title,
+                'post_name' => $menu_slug,
+                'post_status' => 'publish',
+                'post_content' => '[pilates_video_encyclopedia]', // Shortcode
+            ));
+
+            // Postavi meta za sidebar link
+            update_post_meta($page_id, '_pilates_sidebar_page', 1);
+        }
+    }
+
+    // 2. DODAJ U SIDEBAR MENI
+    public function add_video_encyclopedia_menu()
+    {
+        if (!is_user_logged_in()) return;
+
+        $current_user = wp_get_current_user();
+        if (!in_array('pilates_student', $current_user->roles) && !in_array('administrator', $current_user->roles)) {
+            return;
+        }
+
+        // Pronađi page po slug-u (Polylang će vratiti pravi ID)
+        $page = get_page_by_path('video-encyclopedia');
+        if (!$page) return;
+
+        $page_url = get_permalink($page->ID);
+        $page_title = get_the_title($page->ID);
+
+        // SIDEBAR LINK (prilagođen sa ikonicom)
+        $icon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>';
+
+        echo sprintf(
+            '<li><a href="%s" class="sidebar-link">%s %s</a></li>',
+            esc_url($page_url),
+            $icon,
+            esc_html($page_title)
+        );
+    }
+
+    // 3. REGISTRUJ SHORTCODE
+    public function init_video_encyclopedia()
+    {
+        add_shortcode('pilates_video_encyclopedia', array($this, 'render_video_encyclopedia'));
+    }
+
+    // 4. RENDER VIDEO ENCYCLOPEDIA
+    public function render_video_encyclopedia()
+    {
+        ob_start();
+        include plugin_dir_path(__FILE__) . '../public/templates/video-encyclopedia.php';
+        return ob_get_clean();
+    }
+
+    public function ajax_search_videos()
+    {
+        check_ajax_referer('ppa_video_search', 'nonce');
+
+        $search = sanitize_text_field($_POST['search'] ?? '');
+        $apparatus = intval($_POST['apparatus'] ?? 0);
+        $difficulty = intval($_POST['difficulty'] ?? 0);
+        $lang = sanitize_text_field($_POST['lang'] ?? pll_current_language());
+
+        $args = array(
+            'post_type' => 'pilates_exercise',
+            'posts_per_page' => -1,
+            'lang' => $lang,
+            's' => $search,
+            'tax_query' => array(
+                'relation' => 'AND',
+            ),
+        );
+
+        if ($apparatus) {
+            $args['tax_query'][] = array(
+                'taxonomy' => 'apparatus',
+                'field' => 'term_id',
+                'terms' => $apparatus,
+            );
+        }
+
+        if ($difficulty) {
+            $args['tax_query'][] = array(
+                'taxonomy' => 'exercise_difficulty',
+                'field' => 'term_id',
+                'terms' => $difficulty,
+            );
+        }
+
+        $query = new WP_Query($args);
+        $videos = array();
+
+        if ($query->have_posts()) {
+            while ($query->have_posts()) {
+                $query->the_post();
+                $exercise_id = get_the_ID();
+
+                if (have_rows('exercise_video_sections', $exercise_id)) {
+                    while (have_rows('exercise_video_sections', $exercise_id)) {
+                        the_row();
+                        $video = get_sub_field('video');
+
+                        if ($video) {
+                            $apparatus_terms = wp_get_post_terms($exercise_id, 'apparatus');
+                            $difficulty_terms = wp_get_post_terms($exercise_id, 'exercise_difficulty');
+
+                            $apparatus_name = !empty($apparatus_terms) ? $apparatus_terms[0]->name : 'General';
+                            $difficulty_name = !empty($difficulty_terms) ? $difficulty_terms[0]->name : 'Beginner';
+
+                            // ✅ ISPRAVKA - Koristi dashboard URL umjesto get_permalink()
+                            $exercise_url = get_pilates_dashboard_url(array(
+                                'page' => 'categories',
+                                'day' => 1,  // Trebam da pronađem pravi day
+                                'exercise' => $exercise_id
+                            ), $lang);
+
+                            // Pronađi pravi day za exercise
+                            $exercise_days = wp_get_post_terms($exercise_id, 'exercise_day');
+                            if (!empty($exercise_days)) {
+                                $day_term = $exercise_days[0];
+                                // Parse day broj iz slug-a (npr. "day-1" -> 1)
+                                preg_match('/day-(\d+)/', $day_term->slug, $matches);
+                                $day_num = isset($matches[1]) ? intval($matches[1]) : 1;
+
+                                $exercise_url = get_pilates_dashboard_url(array(
+                                    'page' => 'categories',
+                                    'day' => $day_num,
+                                    'exercise' => $exercise_id
+                                ), $lang);
+                            }
+
+                            $videos[] = array(
+                                'id' => $exercise_id,
+                                'title' => get_the_title(),
+                                'link' => $exercise_url,  // ✅ Koristi ispravan URL
+                                'thumbnail' => get_the_post_thumbnail_url($exercise_id, 'medium') ?: '',
+                                'apparatus' => $apparatus_name,
+                                'difficulty' => $difficulty_name,
+                            );
+
+                            break;
+                        }
+                    }
+                }
+            }
+            wp_reset_postdata();
+        }
+
+        wp_send_json_success($videos);
     }
 }

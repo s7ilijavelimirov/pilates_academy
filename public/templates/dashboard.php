@@ -380,11 +380,9 @@ function get_translated_dashboard_url($args = array())
             <?php elseif ($exercise_id): ?>
                 <!-- Single Exercise View -->
                 <?php
-                // Get translated exercise post
                 if (function_exists('pll_get_post')) {
                     $translated_exercise_id = pll_get_post($exercise_id, $current_lang);
                     if ($translated_exercise_id && $translated_exercise_id !== $exercise_id) {
-                        // Proveri da li prevedena vežba postoji
                         $translated_exercise = get_post($translated_exercise_id);
                         if ($translated_exercise && $translated_exercise->post_status === 'publish') {
                             $exercise_id = $translated_exercise_id;
@@ -396,8 +394,7 @@ function get_translated_dashboard_url($args = array())
                 if ($exercise && $exercise->post_type === 'pilates_exercise'):
                     $duration = get_field('exercise_duration', $exercise->ID);
                     $order = $exercise->menu_order;
-                    $short_desc = get_field('exercise_short_description', $exercise->ID);
-                ?>
+                    $short_desc = get_field('exercise_short_description', $exercise->ID); ?>
                     <div class="content-header">
                         <h1 class="content-title"><?php echo esc_html($exercise->post_title); ?></h1>
                         <div class="breadcrumb">
@@ -442,12 +439,47 @@ function get_translated_dashboard_url($args = array())
                                     <span class="meta-item">🕐 <?php echo $duration; ?> <?php echo pll_text('min'); ?></span>
                                 <?php endif; ?>
 
-                                <?php if ($exercise_positions && !is_wp_error($exercise_positions)): ?>
+                                <?php
+                                $exercise_positions = get_the_terms($exercise->ID, 'exercise_position');
+                                if ($exercise_positions && !is_wp_error($exercise_positions)):
+                                    $position = $exercise_positions[0];
+                                    if (function_exists('pll_get_term')) {
+                                        $translated_position_id = pll_get_term($position->term_id, $current_lang);
+                                        if ($translated_position_id) {
+                                            $position = get_term($translated_position_id);
+                                        }
+                                    }
+                                ?>
                                     <span class="meta-item">📍 <?php echo esc_html($position->name); ?></span>
                                 <?php endif; ?>
 
-                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day)); ?>" class="back-btn">
-                                    ← <?php echo pll_text('Back to'); ?> <?php echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day; ?>
+                                <!-- BACK DUGME - ISPRAVKA -->
+                                <?php
+                                // Provjeri da li dolazimo iz Video Encyclopedia
+                                $referrer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+                                $from_video_encyclopedia = (strpos($referrer, 'video-encyclopedia') !== false);
+
+                                if ($from_video_encyclopedia) {
+                                    // Vrati na Video Encyclopedia sa ISTIM jezikom
+                                    $back_url = get_translated_dashboard_url(array('page' => 'video-encyclopedia'), $current_lang);
+                                    $back_text = pll_text('Back to Video Encyclopedia');
+                                } else {
+                                    // Vrati na Categories/Training Day
+                                    $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                    if ($day_term && function_exists('pll_get_term')) {
+                                        $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                        if ($translated_term_id) {
+                                            $day_term = get_term($translated_term_id);
+                                        }
+                                    }
+
+                                    $back_url = get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day), $current_lang);
+                                    $back_text = pll_text('Back to') . ' ' . ($day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day);
+                                }
+                                ?>
+
+                                <a href="<?php echo esc_url($back_url); ?>" class="back-btn">
+                                    ← <?php echo esc_html($back_text); ?>
                                 </a>
                             </div>
                         </div>
@@ -878,7 +910,7 @@ function get_translated_dashboard_url($args = array())
                                     ← <?php echo pll_text('Back to Resources'); ?>
                                 </a>
                             </div>
-                            
+
                         </div>
                         <div class="exercise-detail">
                             <!-- Content Section (Above PDF) -->
@@ -909,8 +941,19 @@ function get_translated_dashboard_url($args = array())
                         </a>
                     </div>
                 <?php endif; ?>
+            <?php elseif ($current_page === 'video-encyclopedia'): ?>
+                <!-- Video Encyclopedia Page -->
+                <div class="content-header">
+                    <h1 class="content-title"><?php echo pll_text('Video Encyclopedia'); ?></h1>
+                    <div class="breadcrumb">
+                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Video Encyclopedia'); ?>
+                    </div>
+                </div>
+
+                <div class="content-body">
+                    <?php echo do_shortcode('[pilates_video_encyclopedia]'); ?>
+                </div>
             <?php elseif ($current_page === 'resources'): ?>
-                <!-- Resources Page -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Manuals & Resources'); ?></h1>
                     <div class="breadcrumb">
@@ -920,74 +963,83 @@ function get_translated_dashboard_url($args = array())
 
                 <div class="content-body">
                     <?php
-                    // Get current filters
                     $selected_apparatus = isset($_GET['apparatus']) ? array_map('sanitize_text_field', (array)$_GET['apparatus']) : array();
                     $selected_types = isset($_GET['resource_type']) ? array_map('sanitize_text_field', (array)$_GET['resource_type']) : array();
 
-                    // Get all apparatus terms
                     $apparatus_terms = get_terms(array(
                         'taxonomy' => 'apparatus',
                         'hide_empty' => false,
                         'lang' => $current_lang
                     ));
 
-                    // Get all resource type terms
                     $resource_type_terms = get_terms(array(
                         'taxonomy' => 'resource_type',
                         'hide_empty' => false,
                         'lang' => $current_lang
                     ));
+
+                    $has_filters = !empty($selected_apparatus) || !empty($selected_types);
                     ?>
 
-                    <!-- Filter Section -->
-                    <div class="resources-filters">
-                        <form method="get" action="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="filter-form">
-                            <input type="hidden" name="page" value="resources">
+                    <div class="resources-filter-wrapper">
+                        <button class="filter-toggle-btn" onclick="toggleFilters()">
+                            <span class="filter-icon">⚙️</span>
+                            <?php echo pll_text('Filters'); ?>
+                            <?php if ($has_filters): ?>
+                                <span class="active-filters-count"><?php echo count($selected_apparatus) + count($selected_types); ?></span>
+                            <?php endif; ?>
+                        </button>
 
-                            <!-- Apparatus Filter -->
-                            <div class="filter-group">
-                                <h4 class="filter-title">🏋️ <?php echo pll_text('Apparatus'); ?></h4>
-                                <div class="filter-checkboxes">
-                                    <?php foreach ($apparatus_terms as $term): ?>
-                                        <label class="filter-checkbox">
-                                            <input type="checkbox"
-                                                name="apparatus[]"
-                                                value="<?php echo esc_attr($term->slug); ?>"
-                                                <?php echo in_array($term->slug, $selected_apparatus) ? 'checked' : ''; ?>>
-                                            <span><?php echo esc_html($term->name); ?></span>
-                                        </label>
-                                    <?php endforeach; ?>
+                        <div class="resources-filters" id="resourceFilters">
+                            <form method="get" action="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="filter-form">
+                                <input type="hidden" name="page" value="resources">
+
+                                <div class="filter-columns">
+                                    <div class="filter-group">
+                                        <h4 class="filter-title"><?php echo pll_text('Apparatus'); ?></h4>
+                                        <div class="filter-options">
+                                            <?php foreach ($apparatus_terms as $term): ?>
+                                                <label class="filter-checkbox">
+                                                    <input type="checkbox"
+                                                        name="apparatus[]"
+                                                        value="<?php echo esc_attr($term->slug); ?>"
+                                                        <?php echo in_array($term->slug, $selected_apparatus) ? 'checked' : ''; ?>>
+                                                    <span class="checkbox-custom"></span>
+                                                    <span class="checkbox-label"><?php echo esc_html($term->name); ?></span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="filter-group">
+                                        <h4 class="filter-title"><?php echo pll_text('Resource Type'); ?></h4>
+                                        <div class="filter-options">
+                                            <?php foreach ($resource_type_terms as $term): ?>
+                                                <label class="filter-checkbox">
+                                                    <input type="checkbox"
+                                                        name="resource_type[]"
+                                                        value="<?php echo esc_attr($term->slug); ?>"
+                                                        <?php echo in_array($term->slug, $selected_types) ? 'checked' : ''; ?>>
+                                                    <span class="checkbox-custom"></span>
+                                                    <span class="checkbox-label"><?php echo esc_html($term->name); ?></span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <!-- Resource Type Filter -->
-                            <div class="filter-group">
-                                <h4 class="filter-title">📄 <?php echo pll_text('Resource Type'); ?></h4>
-                                <div class="filter-checkboxes">
-                                    <?php foreach ($resource_type_terms as $term): ?>
-                                        <label class="filter-checkbox">
-                                            <input type="checkbox"
-                                                name="resource_type[]"
-                                                value="<?php echo esc_attr($term->slug); ?>"
-                                                <?php echo in_array($term->slug, $selected_types) ? 'checked' : ''; ?>>
-                                            <span><?php echo esc_html($term->name); ?></span>
-                                        </label>
-                                    <?php endforeach; ?>
+                                <div class="filter-actions">
+                                    <button type="submit" class="btn btn-primary"><?php echo pll_text('Apply Filters'); ?></button>
+                                    <?php if ($has_filters): ?>
+                                        <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="btn btn-secondary"><?php echo pll_text('Clear All'); ?></a>
+                                    <?php endif; ?>
                                 </div>
-                            </div>
-
-                            <!-- Filter Buttons -->
-                            <div class="filter-actions">
-                                <button type="submit" class="btn btn-primary"><?php echo pll_text('Apply Filters'); ?></button>
-                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="btn btn-secondary"><?php echo pll_text('Clear All'); ?></a>
-                            </div>
-                        </form>
+                            </form>
+                        </div>
                     </div>
 
-                    <!-- Resources Grid -->
-                    <div class="resources-section">
+                    <div class="resources-grid">
                         <?php
-                        // Build query args
                         $args = array(
                             'post_type' => 'pilates_resource',
                             'posts_per_page' => -1,
@@ -997,7 +1049,6 @@ function get_translated_dashboard_url($args = array())
                             'lang' => $current_lang
                         );
 
-                        // Add tax query if filters are selected
                         $tax_query = array('relation' => 'AND');
 
                         if (!empty($selected_apparatus)) {
@@ -1020,172 +1071,165 @@ function get_translated_dashboard_url($args = array())
                             $args['tax_query'] = $tax_query;
                         }
 
-                        // Get resources
                         $resources = get_posts($args);
 
                         if (!empty($resources)):
+                            foreach ($resources as $resource):
+                                $short_desc = get_field('resource_short_desc', $resource->ID);
+                                $flipbook_id = get_field('resource_flipbook', $resource->ID);
+                                $pdf_file = get_field('resource_pdf', $resource->ID);
+
+                                $resource_apparatus = wp_get_object_terms($resource->ID, 'apparatus');
+                                $apparatus_name = !empty($resource_apparatus) ? $resource_apparatus[0]->name : '';
+
+                                $resource_types = wp_get_object_terms($resource->ID, 'resource_type');
+                                $type_name = !empty($resource_types) ? $resource_types[0]->name : '';
+
+                                if ($flipbook_id) {
+                                    $view_url = get_translated_dashboard_url(array('page' => 'resources', 'view' => $flipbook_id));
+                                } else {
+                                    $view_url = $pdf_file ? $pdf_file['url'] : '#';
+                                }
                         ?>
-                            <div class="exercise-grid">
-                                <?php foreach ($resources as $resource):
-                                    $short_desc = get_field('resource_short_desc', $resource->ID);
-                                    $flipbook_id = get_field('resource_flipbook', $resource->ID);
-                                    $pdf_file = get_field('resource_pdf', $resource->ID);
-
-                                    // Get apparatus
-                                    $resource_apparatus = wp_get_object_terms($resource->ID, 'apparatus');
-                                    $apparatus_name = !empty($resource_apparatus) ? $resource_apparatus[0]->name : '';
-
-                                    // Get resource type
-                                    $resource_types = wp_get_object_terms($resource->ID, 'resource_type');
-                                    $type_name = !empty($resource_types) ? $resource_types[0]->name : '';
-
-                                    // Build URL
-                                    if ($flipbook_id) {
-                                        $view_url = get_translated_dashboard_url(array('page' => 'resources', 'view' => $flipbook_id));
-                                    } else {
-                                        $view_url = $pdf_file ? $pdf_file['url'] : '#';
-                                    }
-                                ?>
-                                    <div class="exercise-card resource-card">
-                                        <div class="exercise-image resource-icon">
-                                            📄
-                                        </div>
-
-                                        <div class="exercise-card-content">
-                                            <h4 class="exercise-card-title">
-                                                <?php echo esc_html($resource->post_title); ?>
-                                            </h4>
-
-                                            <div class="exercise-card-meta">
-                                                <?php if ($apparatus_name): ?>
-                                                    <span class="meta-tag"><?php echo esc_html($apparatus_name); ?></span>
-                                                <?php endif; ?>
-                                                <?php if ($type_name): ?>
-                                                    <span class="meta-tag"><?php echo esc_html($type_name); ?></span>
-                                                <?php endif; ?>
-                                            </div>
-
-                                            <?php if ($short_desc): ?>
-                                                <div class="exercise-card-description">
-                                                    <?php echo wp_trim_words(strip_tags($short_desc), 20); ?>
-                                                </div>
+                                <div class="resource-card">
+                                    <div class="resource-card-header">
+                                        <div class="resource-icon">📄</div>
+                                        <div class="resource-tags">
+                                            <?php if ($apparatus_name): ?>
+                                                <span class="resource-tag apparatus"><?php echo esc_html($apparatus_name); ?></span>
                                             <?php endif; ?>
-
-                                            <a href="<?php echo esc_url($view_url); ?>"
-                                                class="btn btn-primary btn-block"
-                                                <?php echo !$flipbook_id && $pdf_file ? 'target="_blank"' : ''; ?>>
-                                                <?php echo pll_text('View PDF'); ?>
-                                            </a>
+                                            <?php if ($type_name): ?>
+                                                <span class="resource-tag type"><?php echo esc_html($type_name); ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
-                            </div>
 
-                        <?php else: ?>
-                            <div class="no-exercises">
-                                <h3>📚 <?php echo pll_text('No resources found'); ?></h3>
+                                    <div class="resource-card-body">
+                                        <h3 class="resource-title"><?php echo esc_html($resource->post_title); ?></h3>
+                                        <?php if ($short_desc): ?>
+                                            <p class="resource-description"><?php echo wp_trim_words(strip_tags($short_desc), 20); ?></p>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="resource-card-footer">
+                                        <a href="<?php echo esc_url($view_url); ?>"
+                                            class="btn btn-primary btn-block"
+                                            <?php echo !$flipbook_id && $pdf_file ? 'target="_blank"' : ''; ?>>
+                                            <?php echo pll_text('View PDF'); ?>
+                                        </a>
+                                    </div>
+                                </div>
+                            <?php
+                            endforeach;
+                        else:
+                            ?>
+                            <div class="no-resources">
+                                <div class="no-resources-icon">📚</div>
+                                <h3><?php echo pll_text('No resources found'); ?></h3>
                                 <p><?php echo pll_text('Try adjusting your filters or check back later.'); ?></p>
+                                <?php if ($has_filters): ?>
+                                    <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>" class="btn btn-primary">
+                                        <?php echo pll_text('Clear Filters'); ?>
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         <?php endif; ?>
                     </div>
                 </div>
 
-
+                <script>
+                    function toggleFilters() {
+                        const filters = document.getElementById('resourceFilters');
+                        const btn = document.querySelector('.filter-toggle-btn');
+                        filters.classList.toggle('open');
+                        btn.classList.toggle('active');
+                    }
+                </script>
 
             <?php
             else: ?>
-                <!-- Dashboard Home -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Welcome'); ?>, <?php echo esc_html($current_user->first_name); ?>! 👋</h1>
                     <div class="breadcrumb"><?php echo pll_text('Dashboard'); ?> / <?php echo pll_text('Home'); ?></div>
                 </div>
 
                 <div class="content-body">
-                    <div class="dashboard-cards">
+
+                    <div class="ppa-dashboard-grid">
                         <?php
-                        // Count active categories (days that have ONLY exercises)
-                        $active_categories = 0;
-                        for ($i = 1; $i <= 10; $i++) {
-                            $day_term = get_term_by('slug', 'day-' . $i, 'exercise_day');
-                            if (!$day_term) continue;
+                        $dashboard_cards = array(
+                            array(
+                                'title' => pll_text('Manuals & Resources'),
+                                'description' => pll_text('Access training manuals, anatomy workbooks, and pre-training materials'),
+                                'active' => true,
+                                'link' => get_translated_dashboard_url(array('page' => 'resources'))
+                            ),
+                            array(
+                                'title' => pll_text('Video Encyclopedia'),
+                                'description' => pll_text('Browse searchable video library by apparatus and exercise'),
+                                'active' => true,
+                                'link' => get_translated_dashboard_url(array('page' => 'video-encyclopedia'))
+                            ),
+                            array(
+                                'title' => pll_text('Curriculum & Schedule'),
+                                'description' => pll_text('View week-by-week training schedule and curriculum overview'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Practice & Teaching Tools'),
+                                'description' => pll_text('Track your observation, self-practice, and teaching hours'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Student Progress Tracker'),
+                                'description' => pll_text('Monitor your progress and upload required documentation'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Mentorship & Feedback'),
+                                'description' => pll_text('Get answers to FAQs and schedule check-offs with trainers'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Community & Support'),
+                                'description' => pll_text('Stay updated with announcements and connect with instructors'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Continuing Education'),
+                                'description' => pll_text('Explore advanced workshops and recommended learning resources'),
+                                'active' => false,
+                                'link' => '#'
+                            ),
+                            array(
+                                'title' => pll_text('Admin & Help Center'),
+                                'description' => pll_text('Access policies, forms, and technical support documentation'),
+                                'active' => false,
+                                'link' => '#'
+                            )
+                        );
 
-                            // Translate term if needed
-                            if (function_exists('pll_get_term')) {
-                                $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
-                                if ($translated_term_id) {
-                                    $day_term = get_term($translated_term_id);
-                                }
-                            }
-
-                            // Check ONLY for exercises (bez PDF-ova)
-                            $exercise_check = get_posts(array(
-                                'post_type' => 'pilates_exercise',
-                                'posts_per_page' => 1,
-                                'tax_query' => array(
-                                    array(
-                                        'taxonomy' => 'exercise_day',
-                                        'field' => 'term_id',
-                                        'terms' => $day_term->term_id
-                                    )
-                                ),
-                                'fields' => 'ids'
-                            ));
-
-                            if (!empty($exercise_check)) {
-                                $active_categories++;
-                            }
-                        }
-
-                        // Get PREVIOUS login info (not current session)
-                        global $wpdb;
-                        $table_name = $wpdb->prefix . 'pilates_students';
-                        $previous_login_data = $wpdb->get_row($wpdb->prepare(
-                            "SELECT last_login, login_count FROM $table_name WHERE user_id = %d",
-                            $current_user->ID
-                        ));
-
-                        $last_login = $previous_login_data->last_login ?? null;
-                        $login_count = $previous_login_data->login_count ?? 0;
-
-                        // Ako je login_count = 1, znači da je ovo PRVI login
-                        if ($login_count <= 1) {
-                            $last_login_formatted = pll_text('First time login');
-                        } elseif ($last_login) {
-                            // Prikaži PRETHODNI login (jer se trenutni tek update-ovao)
-                            $last_login_formatted = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_login));
-                        } else {
-                            $last_login_formatted = pll_text('No previous login');
-                        }
+                        foreach ($dashboard_cards as $card):
+                            $status_class = $card['active'] ? 'active' : 'coming-soon';
+                            $card_tag = $card['active'] ? 'a' : 'div';
                         ?>
-
-                        <!-- Categories Card -->
-                        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>" class="dashboard-stat-card">
-                            <div class="card-icon-section">
-                                <span class="emoji-icon">📋</span>
-                                <?php echo pll_text('Categories'); ?>
-                            </div>
-                            <div class="card-content">
-                                <div class="card-label"><?php echo pll_text('Total Categories'); ?></div>
-                                <div class="card-number"><?php echo $active_categories; ?></div>
-                            </div>
-                            <div class="card-arrow"></div>
-                        </a>
-
-                        <!-- Profile Card -->
-                        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'profile')); ?>" class="dashboard-stat-card">
-                            <div class="card-icon-section">
-                                <span class="emoji-icon">👤</span>
-                                <?php echo pll_text('My Profile'); ?>
-                            </div>
-                            <div class="card-content">
-                                <div class="card-subtitle">
-                                    <span class="last-login-label"><?php echo pll_text('Last login'); ?>:</span>
-                                    <span class="last-login-date"><?php echo esc_html($last_login_formatted); ?></span>
-                                </div>
-                            </div>
-                            <div class="card-arrow"></div>
-                        </a>
+                            <<?php echo $card_tag; ?> <?php if ($card['active']): ?>href="<?php echo esc_url($card['link']); ?>" <?php endif; ?> class="ppa-dashboard-card <?php echo $status_class; ?>">
+                                <h3><?php echo $card['title']; ?></h3>
+                                <p class="card-description"><?php echo $card['description']; ?></p>
+                                <?php if (!$card['active']): ?>
+                                    <span class="coming-soon-badge"><?php echo pll_text('Coming Soon'); ?></span>
+                                <?php else: ?>
+                                    <span class="card-arrow"></span>
+                                <?php endif; ?>
+                            </<?php echo $card_tag; ?>>
+                        <?php endforeach; ?>
                     </div>
+
                 </div>
             <?php endif; ?>
         </div>

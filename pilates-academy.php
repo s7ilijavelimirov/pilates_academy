@@ -110,9 +110,10 @@ add_filter('pll_get_taxonomies', function ($taxonomies) {
     $taxonomies['exercise_position'] = 'exercise_position';
     $taxonomies['exercise_equipment'] = 'exercise_equipment';
     $taxonomies['apparatus'] = 'apparatus';
+    $taxonomies['exercise_difficulty'] = 'exercise_difficulty';
     $taxonomies['resource_type'] = 'resource_type';
     return $taxonomies;
-}, 99); // HIGH priority - after taxonomies are registered
+}, 99);
 
 // Load textdomain
 add_action('init', function () {
@@ -417,6 +418,21 @@ add_action('init', function () {
             'Billing',
             'Invoice',
 
+            // Video Encyclopedia strings - NOVO
+            'Video Encyclopedia',
+            'Search exercises by apparatus, level, or name',
+            'Search',
+            'Exercise name...',
+            'Apparatus',
+            'All Apparatus',
+            'Difficulty Level',
+            'All Levels',
+            'Reset',
+            'Loading videos...',
+            'No videos found',
+            'Browse searchable video library by apparatus and exercise',
+            'General',
+
             // Social/Sharing strings
             'Share',
             'Like',
@@ -464,7 +480,33 @@ add_action('init', function () {
             'View PDF',
             'No resources found',
             'Try adjusting your filters or check back later.',
-            'Back to Resources'
+            'Back to Resources',
+            'Manuals & Resources',
+            'Access training manuals, anatomy workbooks, and pre-training materials',
+
+            'Video Encyclopedia',
+            'Browse searchable video library by apparatus and exercise',
+
+            'Curriculum & Schedule',
+            'View week-by-week training schedule and curriculum overview',
+
+            'Practice & Teaching Tools',
+            'Track your observation, self-practice, and teaching hours',
+
+            'Student Progress Tracker',
+            'Monitor your progress and upload required documentation',
+
+            'Mentorship & Feedback',
+            'Get answers to FAQs and schedule check-offs with trainers',
+
+            'Community & Support',
+            'Stay updated with announcements and connect with instructors',
+
+            'Continuing Education',
+            'Explore advanced workshops and recommended learning resources',
+
+            'Admin & Help Center',
+            'Access policies, forms, and technical support documentation',
         );
 
         // Registruj sve stringove za Polylang
