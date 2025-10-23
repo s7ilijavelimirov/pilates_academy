@@ -58,6 +58,9 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'video-encyclopedia')); ?>" class="nav-item <?php echo ($current_page === 'video-encyclopedia') ? 'active' : ''; ?>">
             <span class="nav-icon">🎥</span> <?php echo pll_text('Video Encyclopedia'); ?>
         </a>
+        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'curriculum-schedule')); ?>" class="nav-item <?php echo ($current_page === 'curriculum-schedule') ? 'active' : ''; ?>">
+            <span class="nav-icon">📅</span> <?php echo pll_text('Curriculum & Schedule'); ?>
+        </a>
         <a style="display:none" href="<?php echo get_pilates_dashboard_url(array('page' => 'progress')); ?>" class="nav-item <?php echo ($current_page === 'progress') ? 'active' : ''; ?>">
             <span class="nav-icon">📊</span> <?php echo pll_text('My Progress'); ?>
         </a>

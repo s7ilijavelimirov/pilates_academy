@@ -558,6 +558,36 @@ class Pilates_Main
             'meta_box_cb' => 'post_categories_meta_box',
             'show_in_rest' => true,
         ));
+
+        register_post_type('pilates_week_lesson', array(
+            'labels' => array(
+                'name' => 'Week Lessons',
+                'singular_name' => 'Week Lesson',
+                'add_new' => 'Add New Lesson',
+                'add_new_item' => 'Add New Week Lesson',
+                'edit_item' => 'Edit Lesson',
+                'new_item' => 'New Lesson',
+                'view_item' => 'View Lesson',
+                'view_items' => 'View Lessons',
+                'search_items' => 'Search Lessons',
+                'not_found' => 'No lessons found',
+                'not_found_in_trash' => 'No lessons found in trash',
+                'all_items' => 'All Week Lessons',
+                'menu_name' => 'Week Lessons'
+            ),
+            'public' => true,
+            'show_ui' => true,
+            'show_in_menu' => true,
+            'menu_position' => 33,
+            'show_in_rest' => true,
+            'supports' => array('title', 'editor', 'excerpt', 'thumbnail', 'page-attributes'),
+            'menu_icon' => 'dashicons-book',
+            'capability_type' => 'post',
+            'has_archive' => false,
+            'rewrite' => array('slug' => 'week-lesson', 'with_front' => false),
+            'hierarchical' => false,
+            'query_var' => true,
+        ));
     }
 
     public function create_tables()

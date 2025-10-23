@@ -562,12 +562,14 @@ function get_pilates_login_url($lang = null)
     return $base_url;
 }
 
-// Initialize plugin
 add_action('plugins_loaded', 'pilates_init');
 function pilates_init()
 {
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
+    require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-week-lesson.php';
+
     Pilates_Main::get_instance();
+    Pilates_Week_Lesson::get_instance();
 }
 
 // FORSIRAJ FLUSH REWRITE RULES ZA NOVU VERZIJU
