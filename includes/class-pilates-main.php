@@ -750,6 +750,20 @@ class Pilates_Main
                     'rows' => 3,
                     'instructions' => 'Brief description shown in resource card',
                 ),
+                array(
+                    'key' => 'field_resource_training_day',
+                    'label' => 'Training Day',
+                    'name' => 'resource_training_day',
+                    'type' => 'taxonomy',
+                    'taxonomy' => 'exercise_day',
+                    'field_type' => 'select',
+                    'allow_null' => 1,
+                    'ui' => 1,
+                    'return_format' => 'object',
+                    'required' => 0,
+                    'instructions' => 'Select which training day this resource belongs to',
+                    'placement' => 'top',
+                ),
             ),
             'location' => array(
                 array(

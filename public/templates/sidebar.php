@@ -49,10 +49,10 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'profile')); ?>" class="nav-item <?php echo ($current_page === 'profile') ? 'active' : ''; ?>">
             <span class="nav-icon">👤</span> <?php echo pll_text('My Profile'); ?>
         </a>
-        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>" class="nav-item <?php echo ($current_page === 'categories') ? 'active' : ''; ?>">
+        <!-- <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>" class="nav-item <?php echo ($current_page === 'categories') ? 'active' : ''; ?>">
             <span class="nav-icon">📋</span> <?php echo pll_text('Categories'); ?>
-        </a>
-        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'resources')); ?>" class="nav-item <?php echo ($current_page === 'resources') ? 'active' : ''; ?>">
+        </a> -->
+        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'resources')); ?>" class="nav-item <?php echo ($current_page === 'resources' || $current_page === 'categories') ? 'active' : ''; ?>">
             <span class="nav-icon">📚</span> <?php echo pll_text('Manuals & Resources'); ?>
         </a>
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'video-encyclopedia')); ?>" class="nav-item <?php echo ($current_page === 'video-encyclopedia') ? 'active' : ''; ?>">

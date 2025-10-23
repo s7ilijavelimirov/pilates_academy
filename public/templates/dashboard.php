@@ -603,22 +603,32 @@ function get_translated_dashboard_url($args = array())
                 <!-- Categories Page -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Categories'); ?></h1>
-                    <div class="breadcrumb">
-                        <a href="<?php echo get_pilates_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
-                        <?php if (isset($_GET['day'])): ?>
-                            <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>"><?php echo pll_text('Categories'); ?></a> /
-                            <?php
-                            $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
-                            if (function_exists('pll_get_term') && $day_term) {
-                                $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
-                                if ($translated_term_id) {
-                                    $day_term = get_term($translated_term_id);
+                    <div class="content-header-naviga">
+
+                        <div class="breadcrumb">
+                            <a href="<?php echo get_pilates_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
+                            <?php if (isset($_GET['day'])): ?>
+                                <a href="<?php echo get_pilates_dashboard_url(array('page' => 'categories')); ?>"><?php echo pll_text('Categories'); ?></a> /
+                                <?php
+                                $day_term = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
+                                if (function_exists('pll_get_term') && $day_term) {
+                                    $translated_term_id = pll_get_term($day_term->term_id, $current_lang);
+                                    if ($translated_term_id) {
+                                        $day_term = get_term($translated_term_id);
+                                    }
                                 }
-                            }
-                            echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
-                            ?>
-                        <?php else: ?>
-                            <?php echo pll_text('Categories'); ?>
+                                echo $day_term ? esc_html($day_term->name) : pll_text('Day') . ' ' . $current_day;
+                                ?>
+                            <?php else: ?>
+                                <?php echo pll_text('Categories'); ?>
+                            <?php endif; ?>
+                        </div>
+                        <!-- BACK TO RESOURCES DUGME - UVEK PRIKAŽI KADA SU NA DAY KATEGORIJI -->
+                        <?php if (isset($_GET['day']) && !empty($_GET['day'])): ?>
+                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'resources')); ?>"
+                                class="back-btn">
+                                ← <?php echo pll_text('Back to Resources'); ?>
+                            </a>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -706,23 +716,7 @@ function get_translated_dashboard_url($args = array())
                         }
                     }
 
-                    if (!empty($pdf_documents)): ?>
-                        <h3 class="section-title">📚 <?php echo pll_text('Training Documents'); ?></h3>
-                        <div class="documents-section">
-                            <div class="documents-list">
-                                <?php foreach ($pdf_documents as $document):
-                                    $document_title = $document->post_title;
-                                    $document_url = get_translated_dashboard_url(array('page' => 'categories', 'day' => $current_day, 'pdf' => $document->ID));
-                                ?>
-                                    <div class="document-item">
-                                        <a href="<?php echo esc_url($document_url); ?>" class="document-btn">
-                                            📖 <?php echo esc_html($document_title); ?>
-                                        </a>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+                   ?>
                     <div class="exercises-section">
                         <?php
                         // Get current day taxonomy term with translation
@@ -914,13 +908,7 @@ function get_translated_dashboard_url($args = array())
                         </div>
                         <div class="exercise-detail">
                             <!-- Content Section (Above PDF) -->
-                            <?php if (!empty($pdf_post->post_content)): ?>
-                                <div class="detailed-instructions">
-                                    <div class="detailed-instructions-content">
-                                        <?php echo apply_filters('the_content', $pdf_post->post_content); ?>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
+
 
                             <!-- PDF FlipBook -->
                             <div class="pdf-container" style="margin-top: 30px;">
@@ -945,8 +933,15 @@ function get_translated_dashboard_url($args = array())
                 <!-- Video Encyclopedia Page -->
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Video Encyclopedia'); ?></h1>
-                    <div class="breadcrumb">
-                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Video Encyclopedia'); ?>
+
+                    <div class="content-header-naviga">
+                        <div class="breadcrumb">
+                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Video Encyclopedia'); ?>
+                        </div>
+
+                        <a href="<?php echo get_translated_dashboard_url(); ?>" class="back-btn">
+                            ← <?php echo pll_text('Back to Dashboard'); ?>
+                        </a>
                     </div>
                 </div>
 
@@ -956,8 +951,14 @@ function get_translated_dashboard_url($args = array())
             <?php elseif ($current_page === 'resources'): ?>
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Manuals & Resources'); ?></h1>
-                    <div class="breadcrumb">
-                        <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Manuals & Resources'); ?>
+                    <div class="content-header-naviga">
+                        <div class="breadcrumb">
+                            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / <?php echo pll_text('Manuals & Resources'); ?>
+                        </div>
+
+                        <a href="<?php echo get_translated_dashboard_url(); ?>" class="back-btn">
+                            ← <?php echo pll_text('Back to Dashboard'); ?>
+                        </a>
                     </div>
                 </div>
 
@@ -1112,10 +1113,29 @@ function get_translated_dashboard_url($args = array())
                                     </div>
 
                                     <div class="resource-card-footer">
+                                        <?php
+                                        // Pronađi kojem day pripada ovaj resurs
+                                        $training_day = get_field('resource_training_day', $resource->ID);
+
+                                        if ($training_day && isset($training_day->slug)) {
+                                            // Izvuci day broj iz slug-a (day-1, day-2, itd)
+                                            preg_match('/day-(\d+)/', $training_day->slug, $matches);
+                                            $day_number = $matches[1] ?? null;
+
+                                            if ($day_number): ?>
+                                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'categories', 'day' => $day_number)); ?>"
+                                                    class="btn btn-secondary btn-block"
+                                                    style="margin-bottom: 8px;">
+                                                    <?php echo pll_text('View exercises'); ?>
+                                                </a>
+                                        <?php endif;
+                                        }
+                                        ?>
+
                                         <a href="<?php echo esc_url($view_url); ?>"
                                             class="btn btn-primary btn-block"
                                             <?php echo !$flipbook_id && $pdf_file ? 'target="_blank"' : ''; ?>>
-                                            <?php echo pll_text('View PDF'); ?>
+                                            <?php echo pll_text('Open PDF'); ?>
                                         </a>
                                     </div>
                                 </div>

@@ -483,7 +483,7 @@ add_action('init', function () {
             'Back to Resources',
             'Manuals & Resources',
             'Access training manuals, anatomy workbooks, and pre-training materials',
-
+            'Back to Dashboard',
             'Video Encyclopedia',
             'Browse searchable video library by apparatus and exercise',
 
