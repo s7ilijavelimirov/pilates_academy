@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Curriculum & Schedule Template
  * Path: public/templates/curriculum-schedule.php
@@ -35,24 +36,24 @@ $lessons = get_posts(array(
 <!-- LESSONS LIST -->
 <div class="content-body">
     <div class="curriculum-container">
-        
+
         <?php if (!empty($lessons)): ?>
-            
+
             <div class="lessons-simple-list">
                 <?php foreach ($lessons as $lesson):
                     // Koristi dashboard URL sa lesson parametrom
                     $lesson_url = get_pilates_dashboard_url(array(
                         'page' => 'curriculum-schedule',
-                        'lesson' => $lesson->ID
+                        'week' => $lesson->ID
                     ), $current_lang);
-                    
+
                     // Proveri da li je pregledano
                     $is_viewed = Pilates_Week_Lesson::is_lesson_viewed($lesson->ID);
                     $viewed_class = $is_viewed ? 'viewed' : '';
                 ?>
                     <a href="<?php echo esc_url($lesson_url); ?>" class="lesson-link <?php echo $viewed_class; ?>">
                         <?php echo esc_html($lesson->post_title); ?>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
                     </a>
@@ -69,106 +70,119 @@ $lessons = get_posts(array(
 </div>
 
 <style>
-.curriculum-container {
-    width: 100%;
-}
-
-.lessons-simple-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-width: 600px;
-}
-
-.lesson-link {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    padding: 14px 18px;
-    background: var(--pilates-card-bg);
-    border: 2px solid var(--pilates-border);
-    border-radius: 8px;
-    text-decoration: none;
-    color: var(--pilates-text-primary);
-    font-weight: 500;
-    font-size: 15px;
-    transition: all 0.3s ease;
-    width: fit-content;
-}
-
-.lesson-link:hover {
-    border-color: var(--pilates-primary);
-    background: var(--pilates-primary);
-    color: white;
-    transform: translateX(8px);
-}
-
-/* Checkbox Badge - Animated */
-.lesson-link::before {
-    content: '';
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    border: 2px solid var(--pilates-primary);
-    border-radius: 6px;
-    background: transparent;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--pilates-primary);
-    animation: checkboxPulse 0.6s ease-out;
-}
-
-.lesson-link.viewed::before {
-    content: '✓';
-    border-color: #22c55e;
-    color: #22c55e;
-    background: rgba(34, 197, 94, 0.1);
-}
-
-.lesson-link:hover::before {
-    border-color: currentColor;
-    color: currentColor;
-}
-
-@keyframes checkboxPulse {
-    0% {
-        transform: scale(0.8);
-        opacity: 0;
+    .curriculum-container {
+        width: 100%;
     }
-    50% {
-        transform: scale(1.1);
+
+    .lessons-simple-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 600px;
     }
-    100% {
-        transform: scale(1);
+
+    .lesson-link {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 14px 18px;
+        background: var(--pilates-card-bg);
+        border: 2px solid var(--pilates-border);
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--pilates-text-primary);
+        font-weight: 500;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        width: auto;
+        position: relative;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .lesson-link:hover {
+        border-color: var(--pilates-primary);
+        background: var(--pilates-primary);
+        color: white;
+        transform: translateX(8px);
+    }
+
+    /* Success Icon - Samo kada je viewed */
+    .lesson-link.viewed::before {
+        content: '✓';
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        background: #22c55e;
+        border-radius: 50%;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        animation: successPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes successPop {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        50% {
+            transform: scale(1.2);
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @keyframes checkmarkDraw {
+        0% {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+        100% {
+            width: 10px;
+            height: 6px;
+            opacity: 1;
+        }
+    }
+
+    .lesson-link:hover svg {
         opacity: 1;
     }
-}
 
-.lesson-link svg {
-    flex-shrink: 0;
-    margin-left: auto;
-    opacity: 0.6;
-}
-
-.lesson-link:hover svg {
-    opacity: 1;
-}
-
-.no-curriculum {
-    padding: 60px 20px;
-    text-align: center;
-    color: var(--pilates-text-secondary);
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-    .lesson-link {
-        padding: 12px 16px;
-        font-size: 14px;
+    .lesson-link svg {
+        flex-shrink: 0;
+        margin-left: auto;
+        opacity: 0.6;
     }
-}
+
+    .no-curriculum {
+        padding: 60px 20px;
+        text-align: center;
+        color: var(--pilates-text-secondary);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        .lesson-link {
+            padding: 12px 16px;
+
+        }
+
+        .lesson-link.viewed::after {
+            left: 5px;
+            width: 8px;
+            height: 5px;
+            border-left-width: 1.5px;
+            border-bottom-width: 1.5px;
+        }
+    }
 </style>

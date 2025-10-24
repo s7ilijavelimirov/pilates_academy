@@ -196,6 +196,11 @@ html, body {
     padding: 25px 0
 }
 
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+}
+
 .nav-item {
     display: block;
     padding: 16px 25px;
@@ -925,9 +930,13 @@ body, html, .dashboard-container {
 }
 
 .detailed-instructions-content ul {
-    padding-left: 2rem
+    padding-left: 2rem;
+    list-style: inherit;
 }
-
+.detailed-instructions-content ul li a{
+    color: var(--pilates-primary);
+    text-decoration: none;
+}
 .detailed-instructions-content p {
     margin-bottom: 1rem;
 }

@@ -140,6 +140,7 @@ class Pilates_Main
 
         $current_day = isset($_GET['day']) ? intval($_GET['day']) : null;
         $exercise_id = isset($_GET['exercise']) ? intval($_GET['exercise']) : null;
+        $lesson_id = isset($_GET['lesson']) ? intval($_GET['lesson']) : null;
         $pdf_id = isset($_GET['pdf']) ? intval($_GET['pdf']) : null;
         $current_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
 
@@ -162,14 +163,20 @@ class Pilates_Main
             $new_url = home_url($base_path);
         }
 
-        // Add query parameters
+        // Add query parameters - REDOSLED JE BITAN
         $query_args = array();
 
+        // 1. Page uvek prvi
+        if ($current_page && $current_page !== 'dashboard') {
+            $query_args['page'] = $current_page;
+        }
+
+        // 2. Day
         if ($current_day) {
             $query_args['day'] = $current_day;
         }
 
-        // Exercise translation
+        // 3. Exercise translation
         if ($exercise_id && function_exists('pll_get_post')) {
             $translated_id = pll_get_post($exercise_id, $slug);
             if ($translated_id && $translated_id !== $exercise_id && get_post_status($translated_id) === 'publish') {
@@ -179,11 +186,10 @@ class Pilates_Main
             }
         }
 
-        // PDF LOGIC - Najdi odgovarajući PDF za target jezik
+        // 4. PDF translation
         if ($pdf_id && $current_day) {
-            $target_pdf_id = $pdf_id; // fallback
+            $target_pdf_id = $pdf_id;
 
-            // Dobij day term za target jezik
             $day_term_original = get_term_by('slug', 'day-' . $current_day, 'exercise_day');
 
             if ($day_term_original && function_exists('pll_get_term')) {
@@ -193,11 +199,9 @@ class Pilates_Main
                     $target_day_term = get_term($target_day_term_id);
 
                     if ($target_day_term) {
-                        // Dobij assigned PDF za target jezik
                         $target_assigned_pdfs = get_term_meta($target_day_term->term_id, 'assigned_pdfs', true);
 
                         if (is_array($target_assigned_pdfs) && !empty($target_assigned_pdfs)) {
-                            // Uzmi prvi PDF iz liste (trebao bi biti samo jedan)
                             $target_pdf_id = $target_assigned_pdfs[0];
                         }
                     }
@@ -207,8 +211,14 @@ class Pilates_Main
             $query_args['pdf'] = $target_pdf_id;
         }
 
-        if ($current_page && $current_page !== 'dashboard') {
-            $query_args['page'] = $current_page;
+        // 5. LESSON TRANSLATION - UVEK NA KRAJU
+        if ($lesson_id && function_exists('pll_get_post')) {
+            $translated_lesson = pll_get_post($lesson_id, $slug);
+            if ($translated_lesson && $translated_lesson > 0 && get_post_status($translated_lesson) === 'publish') {
+                $query_args['lesson'] = $translated_lesson;
+            } else {
+                $query_args['lesson'] = $lesson_id;
+            }
         }
 
         if (!empty($query_args)) {
@@ -585,7 +595,7 @@ class Pilates_Main
             'capability_type' => 'post',
             'has_archive' => false,
             'rewrite' => array('slug' => 'week-lesson', 'with_front' => false),
-            'hierarchical' => false,
+            'hierarchical' => true,
             'query_var' => true,
         ));
     }

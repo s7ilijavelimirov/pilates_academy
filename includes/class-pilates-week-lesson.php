@@ -16,37 +16,70 @@ class Pilates_Week_Lesson
     {
         add_action('init', array($this, 'register_week_lesson_acf_fields'), 25);
         add_action('init', array($this, 'create_progress_table'));
-        
-        // Admin columns
+
         add_filter('manage_pilates_week_lesson_posts_columns', array($this, 'set_custom_columns'));
         add_action('manage_pilates_week_lesson_posts_custom_column', array($this, 'custom_column_content'), 10, 2);
-        
-        // AJAX praćenja
+
         add_action('wp_ajax_mark_lesson_viewed', array($this, 'mark_lesson_viewed'));
         add_action('wp_ajax_nopriv_mark_lesson_viewed', array($this, 'mark_lesson_viewed'));
+
+        add_action('wp', array($this, 'debug_translation_group'));
     }
 
-    // Kreiraj tabelu za praćenje
+    // Kreiraj tabelu za praćenje - sa translation_group_id
     public function create_progress_table()
     {
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_lesson_progress';
-        
+
         $charset_collate = $wpdb->get_charset_collate();
 
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
-            lesson_id bigint(20) NOT NULL,
+            translation_group_id bigint(20) NOT NULL,
             viewed_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            UNIQUE KEY user_lesson (user_id, lesson_id),
+            UNIQUE KEY user_group (user_id, translation_group_id),
             KEY user_id (user_id),
-            KEY lesson_id (lesson_id)
+            KEY translation_group_id (translation_group_id)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
+    }
+
+    /**
+     * Dobij translation group ID - isti za sve jezike
+     */
+    private function get_translation_group_id($post_id)
+    {
+        if (!function_exists('pll_get_post_language')) {
+            // Ako Polylang nije aktivan, koristi post_id
+            return $post_id;
+        }
+
+        $post_language = pll_get_post_language($post_id);
+
+        if (!$post_language) {
+            return $post_id;
+        }
+
+        // Ako Polylang postoji, pronađi sve translacije
+        if (function_exists('PLL') && PLL()) {
+            try {
+                $translations = PLL()->model->post->get_translations($post_id);
+
+                if (!empty($translations) && is_array($translations)) {
+                    // Vrati najmanji ID kao konzistentan group ID
+                    return min(array_values($translations));
+                }
+            } catch (Exception $e) {
+                error_log('Pilates translation group error: ' . $e->getMessage());
+            }
+        }
+
+        return $post_id;
     }
 
     // Snimi da je student pregledao lekciju
@@ -65,15 +98,18 @@ class Pilates_Week_Lesson
             wp_send_json_error('Missing parameters');
         }
 
+        // Dobij translation group ID za sve jezike
+        $group_id = $this->get_translation_group_id($lesson_id);
+
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_lesson_progress';
 
         $result = $wpdb->query($wpdb->prepare(
-            "INSERT INTO $table_name (user_id, lesson_id, viewed_at) 
+            "INSERT INTO $table_name (user_id, translation_group_id, viewed_at) 
              VALUES (%d, %d, NOW())
              ON DUPLICATE KEY UPDATE viewed_at = NOW()",
             $user_id,
-            $lesson_id
+            $group_id
         ));
 
         if ($result !== false) {
@@ -83,7 +119,9 @@ class Pilates_Week_Lesson
         }
     }
 
-    // Proveri da li je student pregledao lekciju
+    /**
+     * Proveri da li je student pregledao lekciju - na bilo kom jeziku
+     */
     public static function is_lesson_viewed($lesson_id, $user_id = null)
     {
         if (!$user_id) {
@@ -94,37 +132,74 @@ class Pilates_Week_Lesson
             return false;
         }
 
+        // Dobij instance i pronađi group ID
+        $instance = self::get_instance();
+        $group_id = $instance->get_translation_group_id($lesson_id);
+
         global $wpdb;
         $table_name = $wpdb->prefix . 'pilates_lesson_progress';
 
         $result = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM $table_name WHERE user_id = %d AND lesson_id = %d",
+            "SELECT id FROM $table_name 
+             WHERE user_id = %d AND translation_group_id = %d",
             $user_id,
-            $lesson_id
+            $group_id
         ));
 
         return !empty($result);
     }
 
-    // REGISTRUJ ACF POLJA ZA WEEK LESSON - IDENTIČAN EXERCISE-u
+    // REGISTRUJ ACF POLJA ZA WEEK LESSON
     public function register_week_lesson_acf_fields()
     {
         if (function_exists('acf_add_local_field_group')):
 
             acf_add_local_field_group(array(
                 'key' => 'group_pilates_week_lesson_videos',
-                'title' => 'Week Lesson Video Sections',
+                'title' => 'Week Lesson Sections',
                 'fields' => array(
 
                     array(
                         'key' => 'field_lesson_video_sections',
-                        'label' => 'Lesson Video Sections',
+                        'label' => 'Lesson Sections',
                         'name' => 'lesson_video_sections',
                         'type' => 'repeater',
                         'layout' => 'block',
-                        'button_label' => 'Add Video Section',
+                        'button_label' => 'Add Section',
                         'sub_fields' => array(
-
+                            array(
+                                'key' => 'field_lesson_section_title',
+                                'label' => 'Section Title',
+                                'name' => 'section_title',
+                                'type' => 'text',
+                                'placeholder' => 'e.g., Str Week 1:',
+                                'instructions' => 'Enter the title/heading for this section',
+                            ),
+                            // THUMBNAIL/SLIKA - NOVO
+                            array(
+                                'key' => 'field_lesson_thumbnail',
+                                'label' => 'Image',
+                                'name' => 'thumbnail',
+                                'type' => 'image',
+                                'return_format' => 'array',
+                                'preview_size' => 'thumbnail',
+                                'library' => 'all',
+                                'instructions' => 'Upload image for this section',
+                            ),
+                            array(
+                                'key' => 'field_lesson_image_width',
+                                'label' => 'Image Width (%)',
+                                'name' => 'image_width',
+                                'type' => 'select',
+                                'choices' => array(
+                                    '25' => '25%',
+                                    '50' => '50%',
+                                    '75' => '75%',
+                                    '100' => '100%',
+                                ),
+                                'default_value' => '100',
+                                'instructions' => 'Select the width of the image',
+                            ),
                             array(
                                 'key' => 'field_lesson_video_file',
                                 'label' => 'Lesson Video (MP4)',
@@ -219,9 +294,32 @@ class Pilates_Week_Lesson
                 break;
         }
     }
+    public function debug_translation_group()
+    {
+        // TEST - pozovi sa: ?debug_lesson=1157
+        if (isset($_GET['debug_lesson'])) {
+            $post_id = intval($_GET['debug_lesson']);
+            $group_id = $this->get_translation_group_id($post_id);
+
+            echo "<h2>DEBUG Lesson Translation Group</h2>";
+            echo "<p>Post ID: " . $post_id . "</p>";
+            echo "<p>Group ID: " . $group_id . "</p>";
+
+            // Pronađi sve translacije
+            if (function_exists('PLL') && PLL()) {
+                $translations = PLL()->model->post->get_translations($post_id);
+                echo "<p>All translations: " . json_encode($translations) . "</p>";
+            }
+
+            die;
+        }
+    }
+
+    // Pozovi u __construct:
+
 }
 
 // Init class
-add_action('plugins_loaded', function() {
+add_action('plugins_loaded', function () {
     Pilates_Week_Lesson::get_instance();
 }, 6);

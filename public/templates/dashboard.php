@@ -949,108 +949,14 @@ function get_translated_dashboard_url($args = array())
                 <div class="content-body">
                     <?php echo do_shortcode('[pilates_video_encyclopedia]'); ?>
                 </div>
-            <?php elseif ($lesson_id): ?>
-                <!-- Single Week Lesson View -->
-                <?php
-                if (function_exists('pll_get_post')) {
-                    $translated_lesson_id = pll_get_post($lesson_id, $current_lang);
-                    if ($translated_lesson_id && $translated_lesson_id !== $lesson_id) {
-                        $translated_lesson = get_post($translated_lesson_id);
-                        if ($translated_lesson && $translated_lesson->post_status === 'publish') {
-                            $lesson_id = $translated_lesson_id;
-                        }
-                    }
-                }
+            <?php elseif ($current_page === 'curriculum-schedule' && isset($_GET['topic'])): ?>
+                <?php include PILATES_PLUGIN_PATH . 'public/templates/curriculum-topic.php'; ?>
 
-                $lesson = get_post($lesson_id);
-                if ($lesson && $lesson->post_type === 'pilates_week_lesson'):
-                ?>
-                    <div class="content-header">
-                        <h1 class="content-title"><?php echo esc_html($lesson->post_title); ?></h1>
-                        <div class="content-header-naviga">
-                            <div class="breadcrumb">
-                                <a href="<?php echo get_translated_dashboard_url(array('page' => 'curriculum-schedule')); ?>"><?php echo pll_text('Curriculum & Schedule'); ?></a> /
-                                <?php echo esc_html($lesson->post_title); ?>
-                            </div>
+            <?php elseif ($current_page === 'curriculum-schedule' && isset($_GET['week'])): ?>
+                <?php include PILATES_PLUGIN_PATH . 'public/templates/curriculum-week.php'; ?>
 
-                            <a href="<?php echo get_translated_dashboard_url(array('page' => 'curriculum-schedule')); ?>" class="back-btn">
-                                ← <?php echo pll_text('Back to'); ?> <?php echo pll_text('Curriculum & Schedule'); ?>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="content-body">
-                        <div class="exercise-detail">
-                            <?php if (have_rows('lesson_video_sections', $lesson->ID)): ?>
-                                <?php $section_index = 1; ?>
-                                <?php while (have_rows('lesson_video_sections', $lesson->ID)): the_row(); ?>
-                                    <?php
-                                    $video = get_sub_field('video');
-                                    $subtitles = get_sub_field('subtitles');
-                                    $text = get_sub_field('text');
-                                    ?>
-
-                                    <div class="exercise-section-wrapper">
-                                        <?php if ($video): ?>
-                                            <div class="video-section">
-                                                <div class="video-container">
-                                                    <video controls controlsList="nodownload" disablePictureInPicture>
-                                                        <source src="<?php echo esc_url($video['url']); ?>" type="video/mp4">
-
-                                                        <?php if ($subtitles): ?>
-                                                            <?php foreach ($subtitles as $i => $subtitle): ?>
-                                                                <?php if (!empty($subtitle['subtitle_file'])): ?>
-                                                                    <track
-                                                                        kind="subtitles"
-                                                                        src="<?php echo home_url('?pilates_subtitle=1&file_id=' . $subtitle['subtitle_file']['ID']); ?>"
-                                                                        srclang="<?php echo esc_attr($subtitle['language']); ?>"
-                                                                        label="<?php echo ucfirst($subtitle['language']); ?>"
-                                                                        <?php echo ($subtitle['language'] === $current_lang) ? 'default' : ''; ?>>
-                                                                <?php endif; ?>
-                                                            <?php endforeach; ?>
-                                                        <?php endif; ?>
-
-                                                        <?php echo pll_text('Your browser does not support the video tag.'); ?>
-                                                    </video>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-
-                                        <?php if (!empty($text)): ?>
-                                            <div class="detailed-instructions">
-                                                <div class="detailed-instructions-content">
-                                                    <?php echo $text; ?>
-                                                </div>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <?php $section_index++; ?>
-                                <?php endwhile; ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const lessonId = <?php echo $lesson_id; ?>;
-
-                            fetch(ajaxurl, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded',
-                                    },
-                                    body: 'action=mark_lesson_viewed&lesson_id=' + lessonId + '&nonce=' + pilates_nonce
-                                })
-                                .then(response => response.json())
-                                .catch(error => console.log('Tracking:', error));
-                        });
-                    </script>
-                <?php endif; ?>
             <?php elseif ($current_page === 'curriculum-schedule'): ?>
-                <?php
-                // Ucitaj template za Curriculum & Schedule
-                include PILATES_PLUGIN_PATH . 'public/templates/curriculum-schedule.php';
-                ?>
+                <?php include PILATES_PLUGIN_PATH . 'public/templates/curriculum-schedule.php'; ?>
             <?php elseif ($current_page === 'resources'): ?>
                 <div class="content-header">
                     <h1 class="content-title"><?php echo pll_text('Manuals & Resources'); ?></h1>
