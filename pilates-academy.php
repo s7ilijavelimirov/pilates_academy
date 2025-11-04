@@ -112,6 +112,7 @@ add_filter('pll_get_taxonomies', function ($taxonomies) {
     $taxonomies['apparatus'] = 'apparatus';
     $taxonomies['exercise_difficulty'] = 'exercise_difficulty';
     $taxonomies['resource_type'] = 'resource_type';
+    $taxonomies['practice_category'] = 'practice_category';
     return $taxonomies;
 }, 99);
 
@@ -353,7 +354,6 @@ add_action('init', function () {
             'weeks',
             'months',
             'years',
-
             // Exercise-specific strings
             'Beginner',
             'Intermediate',
@@ -567,7 +567,8 @@ function get_pilates_login_url($lang = null)
 }
 
 add_action('plugins_loaded', 'pilates_init');
-function pilates_init() {
+function pilates_init()
+{
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-main.php';
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-week-lesson.php';
     require_once PILATES_PLUGIN_PATH . 'includes/class-pilates-curriculum.php';  // ← NOVI RED
@@ -587,25 +588,6 @@ add_action('admin_init', function () {
     }
 });
 
-// Parse query string parameters for language URLs
-// add_action('parse_request', function ($wp) {
-//     if (isset($wp->query_vars['lang']) && isset($wp->query_vars['pilates_page'])) {
-//         if (isset($wp->query_vars['pilates_params']) && !empty($wp->query_vars['pilates_params'])) {
-//             $params = $wp->query_vars['pilates_params'];
-
-//             if (strpos($params, '?') !== false) {
-//                 $query_string = parse_url($params, PHP_URL_QUERY);
-//                 if ($query_string) {
-//                     parse_str($query_string, $parsed_params);
-//                     foreach ($parsed_params as $key => $value) {
-//                         $_GET[$key] = sanitize_text_field($value);
-//                         $wp->query_vars[$key] = sanitize_text_field($value);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// });
 
 // PRIVREMENO - ukloni nakon testiranja
 add_action('admin_init', function () {

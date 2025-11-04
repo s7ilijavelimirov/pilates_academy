@@ -31,7 +31,8 @@ class Pilates_Main
         // Polylang integration - ISPRAVLJEN HOOK
         add_action('init', array($this, 'polylang_integration'), 20);
 
-
+        add_action('practice_category_edit_form_fields', array($this, 'add_practice_pdf_field'));
+        add_action('edited_practice_category', array($this, 'save_practice_pdf_assignment'));
         // DODAJ OVE NOVE HOOKOVE ZA POSITION ORDERING
         add_action('exercise_position_add_form_fields', array($this, 'add_position_order_field'));
         add_action('exercise_position_edit_form_fields', array($this, 'edit_position_order_field'));
@@ -588,7 +589,29 @@ class Pilates_Main
             'meta_box_cb' => 'post_categories_meta_box',
             'show_in_rest' => true,
         ));
-
+        register_taxonomy('practice_category', 'pilates_resource', array(
+            'hierarchical' => true,
+            'labels' => array(
+                'name' => 'Practice & Teaching',
+                'singular_name' => 'Practice Category',
+                'add_new_item' => 'Add New Category',
+                'edit_item' => 'Edit Category',
+                'update_item' => 'Update Category',
+                'view_item' => 'View Category',
+                'search_items' => 'Search Categories',
+                'not_found' => 'Not Found',
+                'no_terms' => 'No categories',
+            ),
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'query_var' => true,
+            'public' => false,
+            'show_in_menu' => 'edit.php?post_type=pilates_resource',
+            'show_tagcloud' => false,
+            'rewrite' => false,
+            'meta_box_cb' => 'post_categories_meta_box',
+            'show_in_rest' => true,
+        ));
         register_post_type('pilates_week_lesson', array(
             'labels' => array(
                 'name' => 'Week Lessons',
@@ -619,7 +642,58 @@ class Pilates_Main
             'query_var' => true,
         ));
     }
+    public function add_practice_pdf_field($term)
+    {
+        if (!post_type_exists('r3d')) {
+            return;
+        }
 
+        // Get saved category slug
+        $saved_category = get_term_meta($term->term_id, 'practice_flipbook_category', true);
+
+        // Get all r3d categories
+        $r3d_categories = get_terms(array(
+            'taxonomy' => 'r3d_category',
+            'hide_empty' => false,
+        ));
+    ?>
+        <tr class="form-field">
+            <th scope="row">
+                <label for="practice_flipbook_category">📂 FlipBook Category for Shortcode</label>
+            </th>
+            <td>
+                <select name="practice_flipbook_category" id="practice_flipbook_category" style="width: 100%; padding: 8px;">
+                    <option value="">-- Select Category --</option>
+                    <?php foreach ($r3d_categories as $cat): ?>
+                        <option value="<?php echo esc_attr($cat->slug); ?>" <?php echo selected($saved_category, $cat->slug); ?>>
+                            <?php echo esc_html($cat->name); ?> (<?php echo esc_html($cat->slug); ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="description">Select the FlipBook category. Shortcode will be: <code>[real3dflipbook category='selected-category']</code></p>
+
+                <?php if ($saved_category): ?>
+                    <p style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                        <strong>Shortcode:</strong> <code>[real3dflipbook category='<?php echo esc_html($saved_category); ?>']</code>
+                    </p>
+                <?php endif; ?>
+            </td>
+        </tr>
+    <?php
+    }
+
+    // Update save funkciju
+    public function save_practice_pdf_assignment($term_id)
+    {
+        if (!post_type_exists('r3d')) {
+            return;
+        }
+
+        // Spremi selected category slug
+        if (isset($_POST['practice_flipbook_category'])) {
+            update_term_meta($term_id, 'practice_flipbook_category', sanitize_text_field($_POST['practice_flipbook_category']));
+        }
+    }
     public function create_tables()
     {
         global $wpdb;
