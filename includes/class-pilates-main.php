@@ -185,7 +185,27 @@ class Pilates_Main
                 $query_args['exercise'] = $exercise_id;
             }
         }
+        // 3. Week/Topic translation - NOVO
+        $week_id = isset($_GET['week']) ? intval($_GET['week']) : null;
+        $topic_id = isset($_GET['topic']) ? intval($_GET['topic']) : null;
 
+        if ($week_id && function_exists('pll_get_post')) {
+            $translated_id = pll_get_post($week_id, $slug);
+            if ($translated_id && $translated_id !== $week_id && get_post_status($translated_id) === 'publish') {
+                $query_args['week'] = $translated_id;
+            } else {
+                $query_args['week'] = $week_id;
+            }
+        }
+
+        if ($topic_id && function_exists('pll_get_post')) {
+            $translated_id = pll_get_post($topic_id, $slug);
+            if ($translated_id && $translated_id !== $topic_id && get_post_status($translated_id) === 'publish') {
+                $query_args['topic'] = $translated_id;
+            } else {
+                $query_args['topic'] = $topic_id;
+            }
+        }
         // 4. PDF translation
         if ($pdf_id && $current_day) {
             $target_pdf_id = $pdf_id;

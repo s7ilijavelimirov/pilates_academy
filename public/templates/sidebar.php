@@ -61,6 +61,9 @@ $current_lang = function_exists('pll_current_language') ? pll_current_language()
         <a href="<?php echo get_pilates_dashboard_url(array('page' => 'curriculum-schedule')); ?>" class="nav-item <?php echo ($current_page === 'curriculum-schedule') ? 'active' : ''; ?>">
             <span class="nav-icon">📋</span> <?php echo pll_text('Curriculum & Schedule'); ?>
         </a>
+        <a href="<?php echo get_pilates_dashboard_url(array('page' => 'practice-&-teaching-tools')); ?>" class="nav-item <?php echo ($current_page === 'practice-&-teaching-tools') ? 'active' : ''; ?>">
+            <span class="nav-icon">📋</span> <?php echo pll_text('Practice & Teaching Tools'); ?>
+        </a>
         <a style="display:none" href="<?php echo get_pilates_dashboard_url(array('page' => 'progress')); ?>" class="nav-item <?php echo ($current_page === 'progress') ? 'active' : ''; ?>">
             <span class="nav-icon">📊</span> <?php echo pll_text('My Progress'); ?>
         </a>

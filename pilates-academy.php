@@ -466,6 +466,10 @@ add_action('init', function () {
             'Zoom',
             'Fullscreen',
             'Exit Fullscreen',
+            'Back to Curriculum',
+            'Not Available',
+            'This content is not available in your language',
+            'Please select another language or try again later.',
 
             // NOVI STRINGOVI - dodaj na kraj niza:
             'Total Categories',

@@ -198,7 +198,7 @@ html, body {
 
 .sidebar-nav a {
     display: flex;
-    align-items: center;
+    align-items: center
 }
 
 .nav-item {
@@ -931,14 +931,16 @@ body, html, .dashboard-container {
 
 .detailed-instructions-content ul {
     padding-left: 2rem;
-    list-style: inherit;
+    list-style: inherit
 }
-.detailed-instructions-content ul li a{
+
+.detailed-instructions-content ul li a {
     color: var(--pilates-primary);
-    text-decoration: none;
+    text-decoration: none
 }
+
 .detailed-instructions-content p {
-    margin-bottom: 1rem;
+    margin-bottom: 1rem
 }
 
 .global-header {
@@ -2240,7 +2242,7 @@ span.flipbook-menu-btn-wrapper.flipbook-menu-btn.skin-color.flipbook-has-tooltip
         font-weight: 700;
         color: var(--pilates-text);
         line-height: 1.3;
-        padding-right: 70px
+        padding-right: 30px;
     }
 }
 
@@ -2661,5 +2663,71 @@ span.flipbook-menu-btn-wrapper.flipbook-menu-btn.skin-color.flipbook-has-tooltip
     .resources-grid {
         grid-template-columns: 1fr;
         gap: 18px
+    }
+}
+
+.not-available-container {
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 100%;
+    margin: 40px auto;
+    background: var(--pilates-border);
+    border: 2px dashed var(--pilates-primary);
+    border-radius: 12px
+}
+
+.not-available-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    animation: float 3s ease-in-out infinite
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0)
+    }
+
+    50% {
+        transform: translateY(-10px)
+    }
+}
+
+.not-available-container h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--pilates-text-primary);
+    margin: 0 0 12px 0;
+    font-family: 'Inter', sans-serif
+}
+
+.not-available-container p {
+    font-size: 15px;
+    color: var(--pilates-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+    font-family: 'Inter', sans-serif
+}
+
+[data-theme="dark"] .not-available-container {
+    background: var(--pilates-card-bg);
+    border-color: rgba(100, 116, 139, .3)
+}
+
+@media (max-width:768px) {
+    .not-available-container {
+        padding: 40px 20px;
+        margin: 20px auto
+    }
+
+    .not-available-icon {
+        font-size: 48px
+    }
+
+    .not-available-container h2 {
+        font-size: 18px
+    }
+
+    .not-available-container p {
+        font-size: 14px
     }
 }

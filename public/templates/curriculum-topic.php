@@ -1,4 +1,5 @@
 <?php
+
 /**
  * LEVEL 3: Pojedini Topic sa videonima
  * Path: public/templates/curriculum-topic.php
@@ -22,11 +23,11 @@ $parent_week = $data['parent_week'];
     <h1 class="content-title"><?php echo esc_html($topic->post_title); ?></h1>
     <div class="content-header-naviga">
         <div class="breadcrumb">
-            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> / 
-            <a href="<?php echo get_translated_dashboard_url(array('page' => 'curriculum-schedule')); ?>"><?php echo pll_text('Curriculum & Schedule'); ?></a> / 
+            <a href="<?php echo get_translated_dashboard_url(); ?>"><?php echo pll_text('Dashboard'); ?></a> /
+            <a href="<?php echo get_translated_dashboard_url(array('page' => 'curriculum-schedule')); ?>"><?php echo pll_text('Curriculum & Schedule'); ?></a> /
             <a href="<?php echo get_translated_dashboard_url(array('page' => 'curriculum-schedule', 'week' => $parent_week->ID)); ?>">
                 <?php echo esc_html($parent_week->post_title); ?>
-            </a> / 
+            </a> /
             <?php echo esc_html($topic->post_title); ?>
         </div>
 
@@ -63,7 +64,7 @@ $parent_week = $data['parent_week'];
                             <h3><?php echo esc_html($section_title); ?></h3>
                         </div>
                     <?php endif; ?>
-                    
+
                     <?php if ($thumbnail): ?>
                         <img
                             class="detailed-instructions-content"
@@ -71,7 +72,7 @@ $parent_week = $data['parent_week'];
                             alt="<?php echo esc_attr($thumbnail['alt']); ?>"
                             style="width: <?php echo esc_attr($width); ?>%; height: auto;">
                     <?php endif; ?>
-                    
+
                     <?php if ($video): ?>
                         <div class="video-section">
                             <div class="video-container detailed-instructions-content">
@@ -96,7 +97,7 @@ $parent_week = $data['parent_week'];
                             </div>
                         </div>
                     <?php endif; ?>
-                    
+
                     <?php if (!empty($text)): ?>
                         <div class="detailed-instructions">
                             <div class="detailed-instructions-content">
@@ -109,19 +110,74 @@ $parent_week = $data['parent_week'];
         <?php endif; ?>
     </div>
 </div>
+<style>
+    .detailed-instructions-content iframe {
+        max-width: 100%;
+        width: 720px;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        border: none;
+        border-radius: 8px;
+        display: block;
+    }
 
+    /* Ako je iframe u video kontejneru */
+    .video-container iframe {
+        width: 100%;
+        max-width: 800px;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        margin: 0 auto;
+        display: block;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .detailed-instructions-content iframe {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+        }
+
+        .video-container iframe {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .detailed-instructions-content iframe {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+        }
+    }
+</style>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const topicId = <?php echo $topic->ID; ?>;
+        const topicId = <?php echo intval($topic->ID); ?>;
+        const nonce = '<?php echo wp_create_nonce('pilates_nonce'); ?>';
 
-        fetch(ajaxurl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'action=mark_lesson_viewed&lesson_id=' + topicId + '&nonce=' + pilates_nonce
-        })
-        .then(response => response.json())
-        .catch(error => console.log('Tracking:', error));
+        // Automatski označi topic kao pregledан kada se učita stranica
+        fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'mark_lesson_viewed',
+                    lesson_id: topicId,
+                    nonce: nonce
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('✓ Topic marked as viewed');
+                }
+            })
+            .catch(error => console.log('Tracking error:', error));
     });
 </script>

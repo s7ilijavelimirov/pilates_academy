@@ -1208,8 +1208,8 @@ function get_translated_dashboard_url($args = array())
                             array(
                                 'title' => pll_text('Practice & Teaching Tools'),
                                 'description' => pll_text('Track your observation, self-practice, and teaching hours'),
-                                'active' => false,
-                                'link' => '#'
+                                'active' => true,
+                                'link' => get_pilates_dashboard_url(array('page' => 'practice-&-teaching-tools'))
                             ),
                             array(
                                 'title' => pll_text('Student Progress Tracker'),

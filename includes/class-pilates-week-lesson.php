@@ -118,7 +118,44 @@ class Pilates_Week_Lesson
             wp_send_json_error('Database error');
         }
     }
+    /**
+     * Proveravamo da li je parent WEEK zaista pregledан
+     * SAMO ako su SVI child topics pregledani
+     */
+    public static function is_week_fully_viewed($week_id, $user_id = null)
+    {
+        if (!$user_id) {
+            $user_id = get_current_user_id();
+        }
 
+        if (!$user_id) {
+            return false;
+        }
+
+        // Pronađi sve child topics
+        $child_topics = get_posts(array(
+            'post_type' => 'pilates_week_lesson',
+            'post_parent' => $week_id,
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'post_status' => 'publish'
+        ));
+
+        // Ako nema child topics, ne može biti pregledana
+        if (empty($child_topics)) {
+            return false;
+        }
+
+        // Proveravamo da li je SVAKI topic pregledан
+        foreach ($child_topics as $topic_id) {
+            if (!self::is_lesson_viewed($topic_id, $user_id)) {
+                return false; // Ako čak i jedan nije pregledан, Week NIJE pregledан
+            }
+        }
+
+        // SVI su pregledani!
+        return true;
+    }
     /**
      * Proveri da li je student pregledao lekciju - na bilo kom jeziku
      */
@@ -150,14 +187,29 @@ class Pilates_Week_Lesson
     }
 
     // REGISTRUJ ACF POLJA ZA WEEK LESSON
+
+
     public function register_week_lesson_acf_fields()
     {
         if (function_exists('acf_add_local_field_group')):
+
+            // U Pilates_Week_Lesson klasi, dodaj ovo ACF polje pre repeater-a
 
             acf_add_local_field_group(array(
                 'key' => 'group_pilates_week_lesson_videos',
                 'title' => 'Week Lesson Sections',
                 'fields' => array(
+
+                    // NOVO - Topics Navigation Heading
+                    array(
+                        'key' => 'field_week_topics_heading',
+                        'label' => 'Topics Navigation Heading',
+                        'name' => 'topics_navigation_heading',
+                        'type' => 'text',
+                        'placeholder' => 'e.g., Week Topics',
+                        'default_value' => 'Topics',
+                        'instructions' => 'Custom heading for the topics list navigation',
+                    ),
 
                     array(
                         'key' => 'field_lesson_video_sections',
@@ -167,15 +219,18 @@ class Pilates_Week_Lesson
                         'layout' => 'block',
                         'button_label' => 'Add Section',
                         'sub_fields' => array(
+                            // 1. CONTENT - PRVI
                             array(
-                                'key' => 'field_lesson_section_title',
-                                'label' => 'Section Title',
-                                'name' => 'section_title',
-                                'type' => 'text',
-                                'placeholder' => 'e.g., Str Week 1:',
-                                'instructions' => 'Enter the title/heading for this section',
+                                'key' => 'field_lesson_video_text',
+                                'label' => 'Content',
+                                'name' => 'text',
+                                'type' => 'wysiwyg',
+                                'toolbar' => 'full',
+                                'media_upload' => 1,
+                                'instructions' => 'Add text content for this section',
                             ),
-                            // THUMBNAIL/SLIKA - NOVO
+
+                            // 2. SLIKA - DRUGI
                             array(
                                 'key' => 'field_lesson_thumbnail',
                                 'label' => 'Image',
@@ -186,30 +241,20 @@ class Pilates_Week_Lesson
                                 'library' => 'all',
                                 'instructions' => 'Upload image for this section',
                             ),
-                            array(
-                                'key' => 'field_lesson_image_width',
-                                'label' => 'Image Width (%)',
-                                'name' => 'image_width',
-                                'type' => 'select',
-                                'choices' => array(
-                                    '25' => '25%',
-                                    '50' => '50%',
-                                    '75' => '75%',
-                                    '100' => '100%',
-                                ),
-                                'default_value' => '100',
-                                'instructions' => 'Select the width of the image',
-                            ),
+
+                            // 3. VIDEO - TREĆI
                             array(
                                 'key' => 'field_lesson_video_file',
-                                'label' => 'Lesson Video (MP4)',
+                                'label' => 'Video (MP4)',
                                 'name' => 'video',
                                 'type' => 'file',
                                 'return_format' => 'array',
                                 'library' => 'all',
                                 'mime_types' => 'mp4',
+                                'instructions' => 'Upload MP4 video file',
                             ),
 
+                            // SUBTITLES - ostaje isto
                             array(
                                 'key' => 'field_lesson_video_subtitles',
                                 'label' => 'Subtitles (CC)',
@@ -240,15 +285,6 @@ class Pilates_Week_Lesson
                                         'mime_types' => 'vtt,srt',
                                     ),
                                 ),
-                            ),
-
-                            array(
-                                'key' => 'field_lesson_video_text',
-                                'label' => 'Text Instructions / Description',
-                                'name' => 'text',
-                                'type' => 'wysiwyg',
-                                'toolbar' => 'full',
-                                'media_upload' => 1,
                             ),
                         ),
                     ),

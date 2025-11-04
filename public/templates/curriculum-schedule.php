@@ -7,12 +7,13 @@
 
 $current_lang = pll_current_language();
 
-// Get all Week Lessons ordered by post title
+// Get ONLY parent Week Lessons (post_parent = 0) ordered by post title
 $lessons = get_posts(array(
     'post_type' => 'pilates_week_lesson',
     'posts_per_page' => -1,
     'orderby' => 'title',
     'order' => 'ASC',
+    'post_parent' => 0, // SAMO PARENT POSTS
     'lang' => $current_lang,
     'suppress_filters' => false,
 ));
@@ -33,7 +34,7 @@ $lessons = get_posts(array(
     </div>
 </div>
 
-<!-- LESSONS LIST -->
+<!-- WEEKS LIST -->
 <div class="content-body">
     <div class="curriculum-container">
 
@@ -41,17 +42,17 @@ $lessons = get_posts(array(
 
             <div class="lessons-simple-list">
                 <?php foreach ($lessons as $lesson):
-                    // Koristi dashboard URL sa lesson parametrom
+                    // Koristi dashboard URL sa week parametrom
                     $lesson_url = get_pilates_dashboard_url(array(
                         'page' => 'curriculum-schedule',
                         'week' => $lesson->ID
                     ), $current_lang);
 
                     // Proveri da li je pregledano
-                    $is_viewed = Pilates_Week_Lesson::is_lesson_viewed($lesson->ID);
-                    $viewed_class = $is_viewed ? 'viewed' : '';
+                    $is_week_complete = Pilates_Week_Lesson::is_week_fully_viewed($lesson->ID);
+                    $viewed_class = $is_week_complete ? 'viewed' : '';
                 ?>
-                    <a href="<?php echo esc_url($lesson_url); ?>" class="lesson-link <?php echo $viewed_class; ?>">
+                    <a href="<?php echo esc_url($lesson_url); ?>" class="lesson-link <?php echo esc_attr($viewed_class); ?>">
                         <?php echo esc_html($lesson->post_title); ?>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"></polyline>
@@ -61,8 +62,10 @@ $lessons = get_posts(array(
             </div>
 
         <?php else: ?>
-            <div class="no-curriculum">
-                <p><?php echo pll_text('No curriculum weeks available yet.'); ?></p>
+            <div class="not-available-container">
+                <div class="not-available-icon">🌐</div>
+                <h2><?php echo pll_text('This content is not available in your language'); ?></h2>
+                <p><?php echo pll_text('Please select another language or try again later.'); ?></p>
             </div>
         <?php endif; ?>
 
@@ -174,7 +177,6 @@ $lessons = get_posts(array(
     @media (max-width: 768px) {
         .lesson-link {
             padding: 12px 16px;
-
         }
 
         .lesson-link.viewed::after {
