@@ -187,7 +187,7 @@ add_action('init', function () {
             'Menu',
             'Profile',
             'Save Changes',
-
+            'View Documents',
 
             // Profile Page strings
             'First Name',
@@ -588,7 +588,27 @@ add_action('admin_init', function () {
     }
 });
 
+// Import functionality
+require_once plugin_dir_path(__FILE__) . 'includes/class-exercise-importer.php';
 
+add_action('admin_menu', 'pa_add_import_submenu');
+function pa_add_import_submenu()
+{
+    add_submenu_page(
+        'edit.php?post_type=pilates_exercise',
+        'Import Exercises',
+        'Import JSON',
+        'manage_options',
+        'pa-import-exercises',
+        'pa_render_import_page'
+    );
+}
+
+function pa_render_import_page()
+{
+    $importer = new PA_Exercise_Importer();
+    $importer->render_page();
+}
 // PRIVREMENO - ukloni nakon testiranja
 add_action('admin_init', function () {
     if (isset($_GET['flush_pilates'])) {

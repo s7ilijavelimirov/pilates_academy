@@ -177,7 +177,13 @@ if ($_POST && isset($_POST['update_profile'])) {
                 include PILATES_PLUGIN_PATH . 'public/templates/dashboard/video-encyclopedia.php';
 
             elseif ($current_page === 'practice-teaching-tools') :
-                include PILATES_PLUGIN_PATH . 'public/templates/dashboard/practice-teaching-tools.php';
+              
+                if (isset($_GET['category']) && !empty($_GET['category'])) :
+                    include PILATES_PLUGIN_PATH . 'public/templates/dashboard/practice-category-detail.php';
+                else :
+                    
+                    include PILATES_PLUGIN_PATH . 'public/templates/dashboard/practice-teaching-tools.php';
+                endif;
 
             elseif ($current_page === 'curriculum-schedule') :
                 if (isset($_GET['topic'])) :

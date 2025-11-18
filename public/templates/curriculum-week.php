@@ -154,6 +154,114 @@ if (empty($topics)) {
                 <p><?php echo pll_text('No topics available yet.'); ?></p>
             </div>
         <?php endif; ?>
+        <?php
+        // Pronađi kviz koji je povezan sa ovom nedeljom
+        $quizzes = get_posts(array(
+            'post_type' => 'akademija_quiz',
+            'meta_query' => array(
+                array(
+                    'key' => 'linked_week',
+                    'value' => $week->ID,
+                    'compare' => '='
+                )
+            ),
+            'posts_per_page' => 1
+        ));
+
+        if (!empty($quizzes)) {
+            $quiz = $quizzes[0];
+
+            echo '<div class="akademija-quiz-sections">';
+
+            // Quiz header sa title i description
+            echo '<div class="akademija-quiz-header">';
+            echo '<h2 class="akademija-quiz-title">' . esc_html($quiz->post_title) . '</h2>';
+
+            // Default description
+            $description = !empty($quiz->post_content) ? $quiz->post_content : 'After reading through all the lessons above, it\'s time to test your knowledge with this quiz. You can repeat the quiz as often as you like. Any questions, please put them in the comments at the bottom of the page.';
+            echo '<div class="akademija-quiz-description">' . wp_kses_post($description) . '</div>';
+
+            // TAKE QUIZ button - POČETAK
+            echo '<div class="akademija-quiz-start-section">';
+            echo '<button class="akademija-quiz-take-btn btn btn-primary" data-quiz-id="' . esc_attr($quiz->ID) . '">' . pll_text('TAKE QUIZ') . '</button>';
+            echo '</div>';
+
+            echo '</div>';
+
+            // Učitaj pitanja u skrivenom delu
+            require_once WP_PLUGIN_DIR . '/akademija-kvizovi/includes/class-question-handler.php';
+            $questions = Akademija_Question_Handler::get_random_questions($quiz->ID, 10);
+
+            if (!empty($questions)) {
+                // Hidden questions wrapper - prikazuje se tek nakon TAKE QUIZ
+                echo '<div class="akademija-quiz-section akademija-quiz-active" style="display:none;">';
+
+                // Quiz container sa step sistemom
+                echo '<div class="akademija-quiz-container" data-quiz-id="' . esc_attr($quiz->ID) . '" data-total-questions="' . count($questions) . '">';
+
+                // Progress bar
+                echo '<div class="akademija-quiz-progress">';
+                echo '<div class="akademija-quiz-progress-header">';
+                echo '<button class="akademija-quiz-arrow-prev btn-arrow" disabled>‹</button>';
+                echo '<div class="akademija-quiz-step-info">';
+                echo '<span class="akademija-quiz-step-counter">' . pll_text('Question') . ' <span class="current-question">1</span> ' . pll_text('of') . ' ' . count($questions) . '</span>';
+                echo '<div class="akademija-quiz-progress-bar">';
+                echo '<div class="akademija-quiz-progress-fill" style="width: 10%"></div>';
+                echo '</div>';
+                echo '</div>';
+                echo '<button class="akademija-quiz-arrow-next btn-arrow">›</button>';
+                echo '</div>';
+                echo '</div>';
+
+                // Questions wrapper - SKRIVENI SVE, POKAZUJE SE JEDNO PO JEDNO
+                echo '<div class="akademija-quiz-questions-wrapper">';
+                foreach ($questions as $idx => $question) {
+                    // KREIRAJ JEDINSTVENI HASH ZA OVO PITANJE (kombinacija teksta + prvog odgovora)
+                    $question_hash = md5($question['question_text']);
+
+                    $display_class = ($idx === 0) ? 'akademija-quiz-question-item active' : 'akademija-quiz-question-item';
+                    echo '<div class="' . $display_class . '" data-question-index="' . $idx . '" data-question-hash="' . esc_attr($question_hash) . '">';
+                    // Pitanje
+                    echo '<div class="akademija-quiz-question-text">';
+                    echo '<h3>' . esc_html($question['question_text']) . '</h3>';
+                    echo '</div>';
+
+                    // Odgovori
+                    echo '<div class="akademija-quiz-answers">';
+                    if (!empty($question['answers'])) {
+                        foreach ($question['answers'] as $answer_idx => $answer) {
+
+
+                            $input_id = 'answer_' . $idx . '_' . $answer_idx;
+                            echo '<div class="akademija-quiz-answer-option">';
+                            echo '<input type="checkbox" name="question_' . $idx . '" value="' . esc_attr($answer['answer_text']) . '" id="' . $input_id . '" class="akademija-quiz-radio" data-question="' . $idx . '">';
+                            echo '<label for="' . $input_id . '" class="akademija-quiz-answer-label">' . esc_html($answer['answer_text']) . '</label>';
+                            echo '</div>';
+                        }
+                    }
+                    echo '</div>';
+
+
+                    // Buttons - PREV, NEXT (ili SUBMIT na kraju)
+                    echo '<div class="akademija-quiz-controls">';
+                    if ($idx > 0) {
+                        echo '<button class="akademija-quiz-bottom-prev btn btn-secondary">' . pll_text('PREV') . '</button>';
+                    }
+                    if ($idx === count($questions) - 1) {
+                        echo '<button class="akademija-quiz-submit-btn btn btn-success" disabled>' . pll_text('SUBMIT') . '</button>';
+                    } else {
+                        echo '<button class="akademija-quiz-bottom-next btn btn-primary" disabled>' . pll_text('NEXT') . '</button>';
+                    }
+                    echo '</div>';
+                    echo '</div>';
+                }
+                echo '</div>';
+
+                echo '</div>';
+                echo '</div>';
+            }
+        }
+        ?>
     </div>
 
     <style>
